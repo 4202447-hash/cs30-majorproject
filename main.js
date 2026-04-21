@@ -98,12 +98,21 @@ let backgroundLayerLight;
 let deadGrassPlatformM;
 let deadGrassPlatformL;
 let deadGrassPlatformR;
+let stoneStageLeft;
+let stoneStageRight;
+let stoneStageMiddle;
+let stoneStageLeftR;
+let stoneStageRightR;
+let stoneStageMiddleR;
 let stonePlatformL;
 let stonePlatformR;
 let stonePlatformM;
 let stoneStageL;
 let stoneStageM;
 let stoneStageR;
+let stoneStageLR;
+let stoneStageMR;
+let stoneStageRR;
 let dirtStageL;
 let dirtStageM;
 let dirtStageR;
@@ -171,6 +180,9 @@ function preload() {
   stoneStageL = loadImage("PropsTextures/stoneStageLeft.png");
   stoneStageR = loadImage("PropsTextures/stoneStageRight.png");
   stoneStageM = loadImage("PropsTextures/stoneStageMiddle.png");
+  stoneStageLR = loadImage("PropsTextures/stoneStageLeftR.png");
+  stoneStageRR = loadImage("PropsTextures/stoneStageRightR.png");
+  stoneStageMR = loadImage("PropsTextures/stoneStageMiddleR.png");
   gateImg = loadImage("PropsTextures/portal.png");
 
   //Breakable objects
@@ -229,8 +241,8 @@ let gateInput;
 //Grid configs
 let mapGrid = [];
 let cellSize = 24;
-let totalCols = 50;
-let totalRows = 50;
+let totalCols = 75;
+let totalRows = 200;
 let createdStages = [];
 let selected = "none";
 let blocksPlaced = [];
@@ -2361,7 +2373,7 @@ function checkDevModePost() {
       changeSize("cols", -1);
     }
 
-    drawGrid(totalRows, totalCols);
+    drawGrid(totalCols, totalRows);
   }
 
 }
@@ -3335,7 +3347,7 @@ function initializeTables() {
     deadGrassPlatformR, stonePlatformL, stonePlatformM, stonePlatformR,
     dirtStageL, dirtStageR, dirtStageM, deadGrassStageL,
     deadGrassStageM, deadGrassStageR, spikeUp, stoneStageL,
-    stoneStageR, stoneStageM, gateImg,
+    stoneStageR, stoneStageM, gateImg, stoneStageLR, stoneStageRR, stoneStageMR,
 
     //Tables
     deadGrassPlatform, stonePlatform, dirtStage, deadGrassStage, stoneStage,
@@ -3355,6 +3367,12 @@ function initializeTables() {
   deadGrassLeft = [24, 24, false, "grey", "deadGrassStageL", 24, 24, true, false, false, "block"];
   deadGrassMid = [24, 24, false, "grey", "deadGrassStageM", 24, 24, true, false, false, "block"];
   deadGrassRight = [24, 24, false, "grey", "deadGrassStageR", 24, 24, true, false, false, "block"];
+  stoneStageLeft = [24, 24, false, "grey", "stoneStageL", 24, 24, true, false, false, "block"];
+  stoneStageMiddle = [24, 24, false, "grey", "stoneStageM", 24, 24, true, false, false, "block"];
+  stoneStageRight = [24, 24, false, "grey", "stoneStageR", 24, 24, true, false, false, "block"];
+  stoneStageLeftR = [24, 24, false, "grey", "stoneStageLR", 24, 24, true, false, false, "block"];
+  stoneStageMiddleR = [24, 24, false, "grey", "stoneStageMR", 24, 24, true, false, false, "block"];
+  stoneStageRightR = [24, 24, false, "grey", "stoneStageRR", 24, 24, true, false, false, "block"];
   dirtLeft = [24, 24, false, "brown", "dirtStageL", 24, 24, true, true, false, "block"];
   dirtRight = [24, 24, false, "brown", "dirtStageR", 24, 24, true, true, false, "block"];
   dirtMid = [24, 24, false, "brown", "dirtStageM", 24, 24, true, true, false, "block"];
@@ -3375,6 +3393,12 @@ function initializeTables() {
     deadGrassLeft,
     deadGrassMid,
     deadGrassRight,
+    stoneStageLeft,
+    stoneStageMiddle,
+    stoneStageRight,
+    stoneStageRightR,
+    stoneStageLeftR,
+    stoneStageMiddleR,
     dirtLeft,
     dirtRight,
     dirtMid,
@@ -3390,6 +3414,9 @@ function initializeTables() {
     crateBtn,
     gateBtn
   ];
+
+  //Stages
+  createdStages = [stage1];
 }
 
 function setUpGUI() {
@@ -3846,5 +3873,18 @@ function loadUserStage(stageName, mode){
 }
 
 function loadCampaign(){
+  //Here is where I would get the last saved stage but for now just stage1
+  let stageName = "stage1";
 
+  if (!createdStages[stageName]){
+    return;
+  };
+
+  mainMenuContainer.hide();
+  stageManager.hide();
+
+  gameMode = "playing";
+  let deadStage = structuredClone(createdStages[stageName]);
+
+  loadStage(deadStage);
 }

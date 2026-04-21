@@ -2,7 +2,7 @@
 I am going to attempt to make a 2d platformer game with combat elements, attempting to replicate games such as Hollow Knight, or Blasphemous 2. The character will be able to explore the map fighting multiple types of enemies, obtaining different items to utilize for combat and movement. I would like to have a story of some sort even if it is minor and small. The game should be a challenging test of reaction speed and pattern recognition. It should have strong artistic appeal.
 
 ##Need to have
-- **A realistic physics engine** allowing for movement of player, enemies, and projectiles
+- **A realistic physics engine** allowing for movement of player, enemies, and projectiles 
 - **A uniqe health system** which rewards the player for certain combat mechanics
 - **Atleast 3** unique enemies, one of which should be flying, and another which should release projectiles.
 - **A consistent art scheme**
@@ -13,7 +13,7 @@ I am going to attempt to make a 2d platformer game with combat elements, attempt
 - **An ingame map**
 - **Checkpoint & Saving system**
 - **Fast paced movement**
-- **15 - 20 Unique stages / levels**
+- **8 - 12 Unique stages / levels**
 - **Atleast one weapon** option (not fists) which provides a uniqe gameplay experience compared to bae fists
 - **Sound**
 
