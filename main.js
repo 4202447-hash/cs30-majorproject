@@ -17,7 +17,7 @@ const LAYER2SPEED = 0.2;
 const LAYER3SPEED = 0.3;
 const BACKGROUNDY = 300;
 const CAMERABOXWIDTH = 200;
-const CAMERAMOVEAMOUNT = 3;
+const CAMERAMOVEAMOUNT = 10;
 const NOBLOCK = 0;
 
 //Important Globals and arrays
@@ -241,7 +241,7 @@ let gateInput;
 //Grid configs
 let mapGrid = [];
 let cellSize = 24;
-let totalCols = 75;
+let totalCols = 150;
 let totalRows = 200;
 let createdStages = [];
 let selected = "none";
@@ -2416,8 +2416,8 @@ function checkDevModePre() {
 //Update all entities
 //Helper function to loop through entities and platforms and check collisions
 function updateAll() {
-  for (let x = 0; x < totalRows; x++) {
-    for (let y = 0; y < totalCols; y++) {
+  for (let x = 0; x < mapGrid.length; x++) {
+    for (let y = 0; y < mapGrid[x].length; y++) {
       let item = mapGrid[x][y];
       if (entities.includes(mapGrid[x][y]) && gameMode === "playing"){
         item.update();
@@ -2514,9 +2514,9 @@ function getItemsInArea(x, y, sizeX, sizeY, self) {
   let squareTop = y - sizeY/2;
   let squareBottom = y + sizeY/2;
 
-  for (let x = 0; x < totalRows; x++){
-    for (let y = 0; y < totalCols; y++){
-      let object = mapGrid[x][y];
+  for (let i = 0; i < mapGrid.length; i++){
+    for (let j = 0; j < mapGrid[i].length; j++){
+      let object = mapGrid[i][j];
       if (entities.includes(object) || object instanceof BreakableObject){
         let top = object.y - object.sizeY / 2;
         let bottom = object.y + object.sizeY / 2;
@@ -2537,8 +2537,8 @@ function getItemsInArea(x, y, sizeX, sizeY, self) {
 
 //Checks if there is a platform in a given location
 function checkIfPath(x, y) {
-  for (let i = 0; i < totalRows; i++){
-    for (let j = 0; j < totalCols; j++){
+  for (let i = 0; i < mapGrid.length; i++){
+    for (let j = 0; j < mapGrid[i].length; j++){
       if (mapGrid[i][j] instanceof Platform || mapGrid[i][j] instanceof BreakableObject){
         let plat = mapGrid[i][j];
         if (
@@ -2590,7 +2590,7 @@ function createGrid(cols, rows) {
   let grid  = [];
 
   for (let i = 0; i < cols; i++) {
-    grid[i] = [];
+    grid.push([]);
     for (let j = 0; j < rows; j++){
       grid[i][j] = 0; //Unoccupied
     }
@@ -3039,8 +3039,8 @@ function placePlayer(givenX, givenY){
   let drawY = gridY * cellSize + cellSize/2;
 
   //Get rid of the player object if it already exists
-  for (let x = 0; x < totalRows; x++) {
-    for (let y = 0; y < totalCols; y++) {
+  for (let x = 0; x < mapGrid.length; x++) {
+    for (let y = 0; y < mapGrid[x].length; y++) {
       if (mapGrid[x][y] instanceof Player || mapGrid[[x][y] === "player1" || mapGrid[x][y] === "player2"]) {
         mapGrid[x][y] = NOBLOCK;
       }
@@ -3531,15 +3531,17 @@ function loadStage(stage){
   entities = [];
 
   //Loop throug harray
-  for (let x = 0; x < totalRows; x++){
-    for (let y = 0; y < totalCols; y++){
+  for (let x = 0; x < newMap.length; x++){
+    for (let y = 0; y < newMap[x].length; y++){
       let item = stage[x][y];
-
+      if (!item){
+        continue;
+      }
       //if the item type is a block or platform make a new platform
       if (item.type === "block" || item.type === "platform") {
         newMap[x][y] = new Platform(
-          item.x, 
-          item.y, 
+          x * cellSize + cellSize/2, 
+          y * cellSize + cellSize/2, 
           item.sizeX, 
           item.sizeY, 
           item.oneWay, 
@@ -3557,8 +3559,8 @@ function loadStage(stage){
       //If the item type is a player set the player variable to that player
       if (item.type === "player") {
         let savedPlayer = new Player(
-          item.x,
-          item.y
+          x * cellSize + cellSize/2, 
+          y * cellSize + cellSize/2, 
         );
         player = savedPlayer;
         newMap[x][y] = player;
@@ -3574,19 +3576,19 @@ function loadStage(stage){
 
       //If the item type is a breakable object adjust table, and push it to other array for easier loops
       if (item.type === "breakableObject") {
-        let object = new BreakableObject(item.x, item.y, item.sizeX, item.sizeY, item.img, item.health);
+        let object = new BreakableObject(x * cellSize + cellSize/2, y * cellSize + cellSize/2,  item.sizeX, item.sizeY, item.img, item.health);
         newMap[x][y] = object;
         brObjects.push(object);
       }
 
       //If the item type is a gate make a new gate
       if (item.type === "gate") {
-        newMap[x][y] = new Gate(item.x, item.y, item.from, item.to, item.sizeX, item.sizeY, item.toX, item.toY);
+        newMap[x][y] = new Gate(x * cellSize + cellSize/2, y * cellSize + cellSize/2,  item.from, item.to, item.sizeX, item.sizeY, item.toX, item.toY);
       }
 
       //If the item type is a mushroom make a new mushroom and push it to the entities tab for easier loops
       if (item.type === "mushroom") {
-        let shroom = new Mushroom(item.x, item.y, item.startPos, item.endPos, item.directionFacing);
+        let shroom = new Mushroom(x * cellSize + cellSize/2, y * cellSize + cellSize/2,  item.startPos, item.endPos, item.directionFacing);
         newMap[x][y] = shroom;
         entities.push(shroom);
       }
@@ -3887,4 +3889,19 @@ function loadCampaign(){
   let deadStage = structuredClone(createdStages[stageName]);
 
   loadStage(deadStage);
+}
+
+function moveDown(amount){
+  let newGrid = createGrid(totalRows, totalCols);
+  for (let x = 0; x < mapGrid.length; x++){
+    for (let y = 0; y < mapGrid[x].length; y++){
+      if (y - amount < 0){
+        continue;
+      }
+
+      newGrid[x][y + amount] = mapGrid[x][y]; 
+    }
+  }
+  mapGrid = newGrid;
+  return newGrid;
 }
