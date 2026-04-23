@@ -19,6 +19,7 @@ const BACKGROUNDY = 300;
 const CAMERABOXWIDTH = 200;
 const CAMERAMOVEAMOUNT = 10;
 const NOBLOCK = 0;
+const EXTRABLOCKS = 5;
 
 //Important Globals and arrays
 let cameraX = -250;
@@ -2416,9 +2417,27 @@ function checkDevModePre() {
 //Update all entities
 //Helper function to loop through entities and platforms and check collisions
 function updateAll() {
+  //Get all items that are currently in the screen to avoid lag
+  let blocksWide = width/cellSize / mapScale + EXTRABLOCKS;
+  let blocksTall = height/cellSize / mapScale + EXTRABLOCKS;
+
+  let startX = cameraX / cellSize;
+  let startY = cameraY/ cellSize;
+
+  let newArray = createGrid(mapGrid.length, mapGrid[0].length);
+
+  for (let x = startX - EXTRABLOCKS; x < blocksWide; x++){
+    for (let y = startY - EXTRABLOCKS; y < blocksTall; y++){
+      if (mapGrid[x] && mapGrid[x][y] !== undefined){
+        newArray[x][y] = mapGrid[x][y];
+        console.log("Exists")
+      }
+    }
+  }
+
   for (let x = 0; x < mapGrid.length; x++) {
     for (let y = 0; y < mapGrid[x].length; y++) {
-      let item = mapGrid[x][y];
+      let item = newArray[x][y];
       if (entities.includes(mapGrid[x][y]) && gameMode === "playing"){
         item.update();
         item.applyForces();
@@ -3496,7 +3515,7 @@ function setUpGUI() {
     mainMenuContainer.style("display", "flex");
     sideBar.hide();
     saveButton.hide();
-    exitButton.hide();
+    //exitButton.hide();
     selected = "none";
   });
 
@@ -3773,6 +3792,8 @@ function buildStageItem(parent){
     playButton.style("color", "white");
     playButton.style("background", "#004f1e");
     playButton.mousePressed(() => {
+      exitButton.show();
+      exitButton.style("display", "flex");
       loadUserStage(stage, "playing");
     });
 
