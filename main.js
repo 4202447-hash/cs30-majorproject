@@ -516,10 +516,6 @@ class Humanoid {
 
     this.yVel = 0;
 
-    if (!this.grounded) {
-      this.yVel -= 1;
-    }
-
     if (this.directionFacing === "right") {
       this.xVel = Math.min(this.xVel + this.rollStrength, 6);
     }
@@ -862,7 +858,7 @@ class Player extends Humanoid {
     
 
     //Movement/Velocity related state handling
-    if (!this.grounded && this.yVel > 0.5 && this.actionState !== "downSlam") {
+    if (!this.grounded && this.yVel > 2 && this.actionState !== "downSlam") {
       this.lastActionState = this.actionState;
       this.actionState = "jumpFall";
 
@@ -927,11 +923,12 @@ class Player extends Humanoid {
     }
 
     let facing = this.directionFacing === "left" ? -1 : 1;
-    
+    let otherFormFacing = keyIsDown(65) ? -1 : keyIsDown(68) ? 1: facing;
+
     //reset roll state after lengthOfroll amount of time
     if (
       this.actionState === "rolling" &&
-      (millis() - this.lastroll > this.lengthOfroll || Math.sign(this.xVel) !== facing) 
+      (millis() - this.lastroll > this.lengthOfroll || Math.sign(this.xVel) !== otherFormFacing) 
     ) {
       this.lastActionState = this.actionState;
       this.actionState = "idle";
@@ -1751,40 +1748,7 @@ class Platform {
   //Display platform with texture or fallback as rectangle
   display() {
     if (this.img) {
-      let displasizeYX = this.tilesizeX ? this.tilesizeX: 150;
-      let displasizeYY = this.tilesizeY ? this.tilesizeY : 150;
-      
-      push(); //save current settings
-      imageMode(CORNER); //Return to image mode corner because tiling is too hard for me with center
-
-      for (let x = 0; x < this.sizeX; x += displasizeYX) {
-        for (let y = 0; y < this.sizeY; y += displasizeYY){
-
-          let currentImage = imageTable[this.img];
-
-          //If we are tiling with several images to have corner blocks set current image to appropriate block
-          if (Array.isArray(currentImage)) {
-            currentImage = x === 0 ? currentImage[0] : x + displasizeYX >= this.sizeX ? currentImage[2] : currentImage[1];
-          }
-
-          let dW = Math.min(displasizeYX, this.sizeX - x); 
-          let dH = Math.min(displasizeYY, this.sizeY - y);
-          
-          let sourceW = map(dW, 0, displasizeYX, 0, currentImage.width);
-          let sourceH = map(dH, 0, displasizeYY, 0, currentImage.height);
-          
-          image(
-            currentImage,
-            this.x - this.sizeX / 2 + x,  //Since we are on image mode center we need to re,
-            this.y - this.sizeY / 2 + y,
-            dW, dH,
-            0, 0,
-            sourceW,
-            sourceH
-          );
-        }
-      }
-      pop(); //Return to old settings
+      image(imageTable[this.img], this.x, this.y, this.sizeX, this.sizeY);
     }
     else{
       //If no image just make rectangle
@@ -1838,6 +1802,12 @@ class Platform {
     //Ledge grab checks
 
     //Right
+
+    //Climbchecl
+    let gridPositionX = this.x/cellSize;
+    let gridPositionY = this.y/cellSize;
+    let isClear = false;
+
     if (
       abs(itemLeft - this.right) < 5 &&
       abs(handY - this.top) < 15 &&
@@ -1845,7 +1815,7 @@ class Platform {
       !item.attackStates.includes(item.actionState) &&
       millis() - item.lastLedgeClimb > 500 &&
       !item.grounded && this.canClimb &&
-      !this.bottomBlock
+      !this.bottomBlock && isClear
     ) {
       
       //Skip ledge climb if this function is being applied to a hurt block
@@ -1865,7 +1835,7 @@ class Platform {
       !item.attackStates.includes(item.actionState) &&
       millis() - item.lastLedgeClimb > 500 &&
       !item.grounded && this.canClimb &&
-      !this.bottomBlock
+      !this.bottomBlock && isClear
     ) {
 
       if (this instanceof HurtBlock) {
@@ -2418,46 +2388,49 @@ function checkDevModePre() {
 //Helper function to loop through entities and platforms and check collisions
 function updateAll() {
   //Get all items that are currently in the screen to avoid lag
-  let blocksWide = width/cellSize / mapScale + EXTRABLOCKS;
-  let blocksTall = height/cellSize / mapScale + EXTRABLOCKS;
+  let blocksWide = width/cellSize + EXTRABLOCKS;
+  let blocksTall = height/cellSize + EXTRABLOCKS;
 
   let startX = cameraX / cellSize;
-  let startY = cameraY/ cellSize;
+  let startY = cameraY / cellSize;
 
-  let newArray = createGrid(mapGrid.length, mapGrid[0].length);
-
-  for (let x = startX - EXTRABLOCKS; x < blocksWide; x++){
-    for (let y = startY - EXTRABLOCKS; y < blocksTall; y++){
-      if (mapGrid[x] && mapGrid[x][y] !== undefined){
-        newArray[x][y] = mapGrid[x][y];
-        console.log("Exists")
-      }
-    }
-  }
+  //For some reason the start variable positives and negatives are reversed so flip
+  startX = Math.floor(startX *= -1);
+  startY = Math.floor(startY *= -1);
 
   for (let x = 0; x < mapGrid.length; x++) {
     for (let y = 0; y < mapGrid[x].length; y++) {
-      let item = newArray[x][y];
-      if (entities.includes(mapGrid[x][y]) && gameMode === "playing"){
-        item.update();
-        item.applyForces();
+      //Safety check
+      let item;
+      if (mapGrid[x] && mapGrid[x][y] !== undefined){
+        item = mapGrid[x][y];
       }
-        
-      if (item) {
-        if (item instanceof Platform || item instanceof BreakableObject || item instanceof HurtBlock) {
-          for (let entity of entities) {
-            item.checkCollision(entity);
-          }
-          for (let object of brObjects) {
-            for (let chunk of object.chunks) {
-              if (debrisCount > maxDebris){
-                object.chunks.shift();
-                debrisCount--;
-                continue;
+      if (!item){
+        continue;
+      }
+
+      if (x < startX + blocksWide && y < startY + blocksTall){
+        if (item) {
+          if (item instanceof Platform || item instanceof BreakableObject || item instanceof HurtBlock) {
+            for (let entity of entities) {
+              item.checkCollision(entity);
+            }
+            for (let object of brObjects) {
+              for (let chunk of object.chunks) {
+                if (debrisCount > maxDebris){
+                  object.chunks.shift();
+                  debrisCount--;
+                  continue;
+                }
+                item.checkCollision(chunk);
               }
-              item.checkCollision(chunk);
             }
           }
+        }
+
+        if (entities.includes(mapGrid[x][y]) && gameMode === "playing"){
+          item.update();
+          item.applyForces();
         }
 
         else if (item instanceof Gate && gameMode === "playing") {
