@@ -203,7 +203,7 @@ function preload() {
   emptyHeart = loadImage("GUI/emptyHeart.png");
 
   //Stages
-  stage1 = loadJSON("Myotherstage.json");
+  stage1 = loadJSON("stage1.json");
 }
 
 //list of images
@@ -244,7 +244,7 @@ let mapGrid = [];
 let cellSize = 24;
 let totalCols = 150;
 let totalRows = 200;
-let createdStages = [];
+let createdStages = {};
 let selected = "none";
 let blocksPlaced = [];
 let blocksUndone = [];
@@ -282,12 +282,17 @@ function setup() {
     localStorage.setItem("platformer_userStages", "{}");
   }
 
+  if (!userStages["Stage 1"]) {
+  userStages["Stage 1"] = structuredClone(stage1);
+  }
+
   player = new Player(width/2, height/2);
   entities.push(player);
 
   setUpGUI();
   createMenuUI();
   stageManagerUI();
+
 }
 
 function draw() {
@@ -1804,9 +1809,15 @@ class Platform {
     //Right
 
     //Climbchecl
-    let gridPositionX = this.x/cellSize;
-    let gridPositionY = this.y/cellSize;
+    let gridPositionX = Math.floor(this.x/cellSize);
+    let gridPositionY = Math.floor(this.y/cellSize);
     let isClear = false;
+
+    //Check if the block right above the current one is clear to allow climbs
+    if (mapGrid[gridPositionX] && mapGrid[gridPositionX][gridPositionY - 1] === 0){
+      isClear = true;
+    }
+
 
     if (
       abs(itemLeft - this.right) < 5 &&
@@ -2398,8 +2409,11 @@ function updateAll() {
   startX = Math.floor(startX *= -1);
   startY = Math.floor(startY *= -1);
 
-  for (let x = 0; x < mapGrid.length; x++) {
-    for (let y = 0; y < mapGrid[x].length; y++) {
+  let endX = Math.min(startX + blocksWide, mapGrid.length);
+  let endY = Math.min(startY + blocksTall, mapGrid[0].length);
+
+  for (let x = startX; x < endX; x++) {
+    for (let y = startY; y < endY; y++) {
       //Safety check
       let item;
       if (mapGrid[x] && mapGrid[x][y] !== undefined){
@@ -2409,43 +2423,53 @@ function updateAll() {
         continue;
       }
 
-      if (x < startX + blocksWide && y < startY + blocksTall){
-        if (item) {
-          if (item instanceof Platform || item instanceof BreakableObject || item instanceof HurtBlock) {
-            for (let entity of entities) {
-              item.checkCollision(entity);
-            }
-            for (let object of brObjects) {
-              for (let chunk of object.chunks) {
-                if (debrisCount > maxDebris){
-                  object.chunks.shift();
-                  debrisCount--;
-                  continue;
-                }
-                item.checkCollision(chunk);
+      if (item) {
+        if (item instanceof Platform || item instanceof BreakableObject || item instanceof HurtBlock) {
+          for (let entity of entities) {
+            item.checkCollision(entity);
+          }
+          for (let object of brObjects) {
+            for (let chunk of object.chunks) {
+              if (debrisCount > maxDebris){
+                object.chunks.shift();
+                debrisCount--;
+                continue;
               }
+              item.checkCollision(chunk);
             }
           }
         }
+      }
+      else{
+        console.log("Not in frame")
+      }
 
-        if (entities.includes(mapGrid[x][y]) && gameMode === "playing"){
-          item.update();
-          item.applyForces();
-        }
+      if (entities.includes(mapGrid[x][y]) && gameMode === "playing" && item !== player){
+        item.update();
+        item.applyForces();
+      }
 
-        else if (item instanceof Gate && gameMode === "playing") {
-          item.isTouched();
-        }
+      else if (item instanceof Gate && gameMode === "playing") {
+        item.isTouched();
+      }
 
-        else if (item instanceof Gate && gameMode === "editor") {
-          item.display();
-        }
+      else if (item instanceof Gate && gameMode === "editor") {
+        item.display();
+      }
 
-        if (typeof item !== "string" && typeof item !== "number" && item) {
-          item.display();
-        }
+      if (typeof item !== "string" && typeof item !== "number" && item && item !== player) {
+        item.display();
       }
     }
+  }
+
+  //We still want to see the player and have them animated
+  player.update();
+  player.display();
+
+  //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
+  if (gameMode === "playing"){
+    player.applyForces();
   }
 }
 
@@ -3408,7 +3432,7 @@ function initializeTables() {
   ];
 
   //Stages
-  createdStages = [stage1];
+  createdStages = {stage1};
 }
 
 function setUpGUI() {
@@ -3525,10 +3549,15 @@ function loadStage(stage){
   //Loop throug harray
   for (let x = 0; x < newMap.length; x++){
     for (let y = 0; y < newMap[x].length; y++){
+      if (!stage[x] || stage[x][y] === undefined){
+        return
+      }
+
       let item = stage[x][y];
       if (!item){
         continue;
       }
+
       //if the item type is a block or platform make a new platform
       if (item.type === "block" || item.type === "platform") {
         newMap[x][y] = new Platform(
@@ -3882,7 +3911,8 @@ function loadCampaign(){
   gameMode = "playing";
   let deadStage = structuredClone(createdStages[stageName]);
 
-  loadStage(deadStage);
+  mapGrid = loadStage(deadStage);
+  gameMode = "playing";
 }
 
 function moveDown(amount){
