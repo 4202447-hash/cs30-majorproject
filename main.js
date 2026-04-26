@@ -42,6 +42,7 @@ let internalStages = {};
 let userStages = {};
 let gameMode = "menu";
 let currentEditingStage = null;
+let rotation = 0;
 
 //UI Containers 
 //Main Menu
@@ -102,9 +103,6 @@ let deadGrassPlatformR;
 let stoneStageLeft;
 let stoneStageRight;
 let stoneStageMiddle;
-let stoneStageLeftR;
-let stoneStageRightR;
-let stoneStageMiddleR;
 let stonePlatformL;
 let stonePlatformR;
 let stonePlatformM;
@@ -262,6 +260,7 @@ function setup() {
   
   rectMode(CENTER);
   imageMode(CENTER);
+  angleMode(DEGREES)
   noSmooth();
 
   groundLevel = height - floorHeight;
@@ -272,27 +271,36 @@ function setup() {
 
   initializeTables();
 
-  //Load stages the player has made
-  let savedData = localStorage.getItem("platformer_userStages");
-  if (savedData) {
-    userStages = JSON.parse(savedData);
+  // //Load stages the player has made
+  // let savedData = localStorage.getItem("platformer_userStages");
+  // if (savedData) {
+  //   userStages = JSON.parse(savedData);
+  // }
+  // else {
+  //   userStages = {};
+  //   localStorage.setItem("platformer_userStages", "{}");
+  // }
+
+  (localforage.getItem("platformer_userStages").then((savedData) => {
+    if (savedData){
+      userStages = savedData;
+    }
+    else {
+      userStages = {}
+      localforage.setItem("platformer_userStages", {});
+    }
+    if (!userStages["Stage 1"]) {
+      userStages["Stage 1"] = structuredClone(stage1);
+    }
+
+    player = new Player(10000, 100000);
+    entities.push(player);
+
+    setUpGUI();
+    createMenuUI();
+    stageManagerUI();
   }
-  else {
-    userStages = {};
-    localStorage.setItem("platformer_userStages", "{}");
-  }
-
-  if (!userStages["Stage 1"]) {
-  userStages["Stage 1"] = structuredClone(stage1);
-  }
-
-  player = new Player(width/2, height/2);
-  entities.push(player);
-
-  setUpGUI();
-  createMenuUI();
-  stageManagerUI();
-
+  ))
 }
 
 function draw() {
@@ -317,10 +325,10 @@ function draw() {
     }
 
     translate(cameraX + screenShakeX, cameraY + screenShakeY);
-
-    checkDevModePost();
   
     updateAll();
+    checkDevModePost();
+
     pop();
 
     if (gameMode === "editor") {
@@ -360,6 +368,13 @@ function keyPressed() {
 
   if (key === "e") {
     selected = eraser;
+  }
+
+  if (key === "r") {
+    rotation += 90
+    if (rotation === 360){
+      rotation = 0
+    }
   }
 
   if (gameMode === "editor") {
@@ -1734,7 +1749,7 @@ class Mushroom extends Humanoid {
 
 //Platform class
 class Platform {
-  constructor(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide) {
+  constructor(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation) {
     this.x = xPos;
     this.y = yPos;
     this.sizeX = sizeX;
@@ -1748,19 +1763,23 @@ class Platform {
     this.bottomBlock = bottomBlock;
     this.cantCollide = cantCollide;
     this.type = "block";
+    this.rotation = rotation || 0
   }
 
   //Display platform with texture or fallback as rectangle
   display() {
+    push()
+    translate(this.x, this.y);
+    rotate(this.rotation)
     if (this.img) {
-      image(imageTable[this.img], this.x, this.y, this.sizeX, this.sizeY);
+      image(imageTable[this.img], 0, 0, this.sizeX, this.sizeY);
     }
     else{
       //If no image just make rectangle
       fill(this.color) ;
       rect(this.x, this.y, this.sizeX, this.sizeY);
     }
-    
+    pop();
   }
 
   //Snaps an item to a ledge with a side
@@ -1955,8 +1974,8 @@ class Platform {
 }
 
 class HurtBlock extends Platform{
-  constructor(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY) {
-    super(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY);
+  constructor(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation) {
+    super(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation);
 
     this.type = "hurtBlock";
   }
@@ -2424,7 +2443,7 @@ function updateAll() {
       }
 
       if (item) {
-        if (item instanceof Platform || item instanceof BreakableObject || item instanceof HurtBlock) {
+        if ((item instanceof Platform || item instanceof BreakableObject || item instanceof HurtBlock)  && gameMode === "playing") {
           for (let entity of entities) {
             item.checkCollision(entity);
           }
@@ -2440,10 +2459,6 @@ function updateAll() {
           }
         }
       }
-      else{
-        console.log("Not in frame")
-      }
-
       if (entities.includes(mapGrid[x][y]) && gameMode === "playing" && item !== player){
         item.update();
         item.applyForces();
@@ -2464,18 +2479,22 @@ function updateAll() {
   }
 
   //We still want to see the player and have them animated
-  player.update();
-  player.display();
+  if (entities.includes(player)){
+    player.display();
+    player.update();
 
   //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
-  if (gameMode === "playing"){
-    player.applyForces();
+    if (gameMode === "playing"){
+      player.applyForces();
+    }
   }
 }
 
 //Resizes the canvas with the window
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+
+  exitButton.position(width * 0.9, height * 0.1);
 }
 
 //function to draw a parallex background 
@@ -2675,7 +2694,12 @@ function displayBlock(givenX, givenY) {
         drawY = gridY * cellSize + cellSize/2;
       }
 
-      image(displayImage, drawX, drawY, selected[0], selected[1]);
+      push();
+      translate(drawX, drawY)
+      rotate(rotation)
+      image(displayImage, 0, 0, selected[0], selected[1]);
+      pop();
+
       noTint();
     }
   }
@@ -2785,6 +2809,7 @@ function handleDeletes(gridX, gridY){
   //Store the last img so we can compare to placed block in functions
   if (mapGrid[gridX][gridY]  === player) {
     deleteArea(gridX, gridY - 1, 1, 3);
+    entities = entities.filter(entity => entity !== player);
   }
   else if (mapGrid[gridX][gridY]  === "player1") {
     deleteArea(gridX, gridY, 1, 3);
@@ -2827,7 +2852,6 @@ function placeBlock (givenX, givenY, givenSelected) {
     return;
   }
 
-  
   if (checkDuplicate(gridX, gridY, usedSelected)){
     return;
   }
@@ -2848,18 +2872,17 @@ function placeBlock (givenX, givenY, givenSelected) {
   //The mapgrid array is using the new system 
   let platform;
   if (usedSelected[usedSelected.length - 1] === "block" || usedSelected[usedSelected.length - 1] === "platform" ) {
-    platform = new Platform(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[2], usedSelected[3], usedSelected[4], usedSelected[5], usedSelected[6], usedSelected[7], usedSelected[8], usedSelected[9]);
+    platform = new Platform(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[2], usedSelected[3], usedSelected[4], usedSelected[5], usedSelected[6], usedSelected[7], usedSelected[8], usedSelected[9], rotation);
   }
 
   else if (usedSelected[usedSelected.length - 1] === "breakableObject"){
-    platform = new BreakableObject(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[4], usedSelected[9]);
+    platform = new BreakableObject(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[4], usedSelected[9], rotation);
   }
 
   //Push platform to list of blocks placed if it isn"t literally the same block already there
   if (platform) {
     blocksPlaced.push([gridX, gridY, usedSelected]);
     mapGrid[gridX][gridY] = platform;
-    console.log("Pushed");
   }
 }
 
@@ -3029,7 +3052,7 @@ function placeHurtBlock(givenX, givenY, givenSelected) {
   let drawX = gridX * cellSize + cellSize/2;
   let drawY = gridY * cellSize + cellSize/2;
   
-  let hurtBlock = new HurtBlock(drawX, drawY, selected[0], selected[1], selected[2], selected[3], selected[4], selected[5], selected[6], selected[7], selected[8], selected[9]);
+  let hurtBlock = new HurtBlock(drawX, drawY, selected[0], selected[1], selected[2], selected[3], selected[4], selected[5], selected[6], selected[7], selected[8], selected[9], rotation);
   
   if (hurtBlock.img !== mapGrid[gridX][gridY].img) {
     blocksPlaced.push([gridX, gridY, usedSelected]);
@@ -3085,6 +3108,7 @@ function placePlayer(givenX, givenY){
   blocksPlaced.push([gridX, gridY, playerObject]);
   player.x = drawX;
   player.y = drawY;
+  entities.push(player);
 }
 
 //Places mushroom onto map for dev mode
@@ -3363,7 +3387,7 @@ function initializeTables() {
     deadGrassPlatformR, stonePlatformL, stonePlatformM, stonePlatformR,
     dirtStageL, dirtStageR, dirtStageM, deadGrassStageL,
     deadGrassStageM, deadGrassStageR, spikeUp, stoneStageL,
-    stoneStageR, stoneStageM, gateImg, stoneStageLR, stoneStageRR, stoneStageMR,
+    stoneStageR, stoneStageM, gateImg,
 
     //Tables
     deadGrassPlatform, stonePlatform, dirtStage, deadGrassStage, stoneStage,
@@ -3386,9 +3410,6 @@ function initializeTables() {
   stoneStageLeft = [24, 24, false, "grey", "stoneStageL", 24, 24, true, false, false, "block"];
   stoneStageMiddle = [24, 24, false, "grey", "stoneStageM", 24, 24, true, false, false, "block"];
   stoneStageRight = [24, 24, false, "grey", "stoneStageR", 24, 24, true, false, false, "block"];
-  stoneStageLeftR = [24, 24, false, "grey", "stoneStageLR", 24, 24, true, false, false, "block"];
-  stoneStageMiddleR = [24, 24, false, "grey", "stoneStageMR", 24, 24, true, false, false, "block"];
-  stoneStageRightR = [24, 24, false, "grey", "stoneStageRR", 24, 24, true, false, false, "block"];
   dirtLeft = [24, 24, false, "brown", "dirtStageL", 24, 24, true, true, false, "block"];
   dirtRight = [24, 24, false, "brown", "dirtStageR", 24, 24, true, true, false, "block"];
   dirtMid = [24, 24, false, "brown", "dirtStageM", 24, 24, true, true, false, "block"];
@@ -3412,9 +3433,6 @@ function initializeTables() {
     stoneStageLeft,
     stoneStageMiddle,
     stoneStageRight,
-    stoneStageRightR,
-    stoneStageLeftR,
-    stoneStageMiddleR,
     dirtLeft,
     dirtRight,
     dirtMid,
@@ -3477,7 +3495,10 @@ function setUpGUI() {
     //Save a structured clone of whatever the current map is to user stages
     if (userStages[currentEditingStage] ){
       userStages[currentEditingStage] = structuredClone(mapGrid);
-      localStorage.setItem("platformer_userStages", JSON.stringify(userStages));
+
+      localforage.setItem("platformer_userStages", userStages).then(() =>{
+        console.log("Saved stage")
+      })
     }
   });
 
@@ -3573,8 +3594,26 @@ function loadStage(stage){
           item.canClimb, 
           item.bottomBlock, 
           item.cantCollide, 
-          item.type
+          item.rotation
         );
+      }
+
+      if (item.type === "hurtBlock"){
+        newMap[x][y] = new HurtBlock(
+          x * cellSize + cellSize/2, 
+          y * cellSize + cellSize/2, 
+          item.sizeX, 
+          item.sizeY, 
+          item.oneWay, 
+          item.color, 
+          item.img, 
+          item.tilesizeX, 
+          item.tilesizeY, 
+          item.canClimb, 
+          item.bottomBlock, 
+          item.cantCollide, 
+          item.rotation
+        )
       }
 
       //If the item type is a player set the player variable to that player
@@ -3597,7 +3636,7 @@ function loadStage(stage){
 
       //If the item type is a breakable object adjust table, and push it to other array for easier loops
       if (item.type === "breakableObject") {
-        let object = new BreakableObject(x * cellSize + cellSize/2, y * cellSize + cellSize/2,  item.sizeX, item.sizeY, item.img, item.health);
+        let object = new BreakableObject(x * cellSize + cellSize/2, y * cellSize + cellSize/2,  item.sizeX, item.sizeY, item.img, item.health, item.rotation);
         newMap[x][y] = object;
         brObjects.push(object);
       }
@@ -3631,7 +3670,7 @@ function createMenuUI(){
   mainMenuContainer.style("gap", "50px");
 
   //Button to continue from wherever player last left off in campaign/main game
-  let hasPlayedBefore = localStorage.getItem("platformer_hasPlayed");
+  let hasPlayedBefore = localforage.getItem("platformer_hasPlayed");
   let text = "CONTINUE";
 
   if (!hasPlayedBefore){
@@ -3808,8 +3847,9 @@ function buildStageItem(parent){
     deleteButton.mousePressed(() => {
       if (confirm(`Delete stage "${stage}"?`)){
         delete userStages[stage];
-        localStorage.setItem("platformer_userStages", JSON.stringify(userStages));
-        buildStageItem(parent);
+        localforage.setItem("platformer_userStages", userStages).then(() =>{
+          buildStageItem(parent);
+        });
       }
     });
 
@@ -3848,9 +3888,10 @@ function buildStageItem(parent){
       let emptyGrid = createGrid(totalRows, totalCols);
       userStages[name] = emptyGrid;
 
-      localStorage.setItem("platformer_userStages", JSON.stringify(userStages));
-      loadUserStage(name, "editor"); 
-      buildStageItem(parent);
+      localforage.setItem("platformer_userStages", userStages).then(()=>{
+        loadUserStage(name, "editor"); 
+        buildStageItem(parent);
+      });
     }
     else {
       alert("Stage with that name already exists");
