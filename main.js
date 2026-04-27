@@ -11,7 +11,7 @@
 //Constants
 const GRAVITATIONALFORCE = 0.3;
 const FRICTIONALFORCE = 0.5;
-const FOOTOFFSET = 2;
+const FOOTOFFSET = 5;
 const LAYER1SPEED = 0.1;
 const LAYER2SPEED = 0.2;
 const LAYER3SPEED = 0.3;
@@ -260,7 +260,7 @@ function setup() {
   
   rectMode(CENTER);
   imageMode(CENTER);
-  angleMode(DEGREES)
+  angleMode(DEGREES);
   noSmooth();
 
   groundLevel = height - floorHeight;
@@ -281,12 +281,12 @@ function setup() {
   //   localStorage.setItem("platformer_userStages", "{}");
   // }
 
-  (localforage.getItem("platformer_userStages").then((savedData) => {
+  localforage.getItem("platformer_userStages").then((savedData) => {
     if (savedData){
       userStages = savedData;
     }
     else {
-      userStages = {}
+      userStages = {};
       localforage.setItem("platformer_userStages", {});
     }
     if (!userStages["Stage 1"]) {
@@ -300,7 +300,7 @@ function setup() {
     createMenuUI();
     stageManagerUI();
   }
-  ))
+  );
 }
 
 function draw() {
@@ -371,9 +371,9 @@ function keyPressed() {
   }
 
   if (key === "r") {
-    rotation += 90
+    rotation += 90;
     if (rotation === 360){
-      rotation = 0
+      rotation = 0;
     }
   }
 
@@ -1763,15 +1763,15 @@ class Platform {
     this.bottomBlock = bottomBlock;
     this.cantCollide = cantCollide;
     this.type = "block";
-    this.rotation = rotation || 0
+    this.rotation = rotation || 0;
   }
 
   //Display platform with texture or fallback as rectangle
   display() {
-    push()
+    push();
     translate(this.x, this.y);
-    rotate(this.rotation)
-    if (this.img) {
+    rotate(this.rotation);
+    if (imageTable[this.img]) {
       image(imageTable[this.img], 0, 0, this.sizeX, this.sizeY);
     }
     else{
@@ -1919,7 +1919,7 @@ class Platform {
         item.currentPlatform = this;
         item.phasingBottom = false;
       }
-
+      
       item.grounded = true;
       return true;
     }
@@ -1928,6 +1928,20 @@ class Platform {
       itemBottom > this.top + FOOTOFFSET &&
       itemTop < this.bottom - FOOTOFFSET && item.actionState !== "ledgeClimb"
     ) {
+      //If item headbumps object
+      if (
+        !this.oneWay &&
+        itemRight > this.left + FOOTOFFSET &&
+        itemLeft < this.right - FOOTOFFSET &&
+        itemTop < this.bottom &&
+        itemTop > this.top && item.yVel < 0
+      ) {
+        item.y = this.bottom + item.sizeY / 2;
+        item.yVel = 0;
+        console.log("Headbump");
+        return true;
+      }
+
       //If item runs into left of object
       if (
         itemRight > this.left &&
@@ -1938,7 +1952,7 @@ class Platform {
         if (item instanceof Mushroom && item.grounded) {
           item.directionFacing = item.directionFacing === "right" ? "left" : "right";
         }
-
+        console.log("Left");
         return true;
       }
 
@@ -1952,21 +1966,8 @@ class Platform {
         if (item instanceof Mushroom && item.grounded) {
           item.directionFacing = item.directionFacing === "left" ? "right" : "left";
         }
-
+        console.log("Right");
         return true;
-      }
-
-      //If item headbumps object
-      if (
-        !this.oneWay &&
-        itemRight > this.left &&
-        itemLeft < this.right &&
-        itemTop <= this.bottom &&
-        itemTop >= this.top
-      ) {
-        item.y = this.bottom + item.sizeY / 2;
-        item.yVel = 0;
-        itemHit = true;
       }
     }
     return itemHit;
@@ -2483,7 +2484,7 @@ function updateAll() {
     player.display();
     player.update();
 
-  //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
+    //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
     if (gameMode === "playing"){
       player.applyForces();
     }
@@ -2695,8 +2696,8 @@ function displayBlock(givenX, givenY) {
       }
 
       push();
-      translate(drawX, drawY)
-      rotate(rotation)
+      translate(drawX, drawY);
+      rotate(rotation);
       image(displayImage, 0, 0, selected[0], selected[1]);
       pop();
 
@@ -2832,7 +2833,7 @@ function handleDeletes(gridX, gridY){
 //Function to check duplicates in spots
 function checkDuplicate(gridX, gridY, usedSelected){
   let lastPlaced = blocksPlaced[blocksPlaced.length - 1];
-  return lastPlaced && lastPlaced[0] === gridX && lastPlaced[1] === gridY && lastPlaced[2] === usedSelected;
+  return lastPlaced && lastPlaced[0] === gridX && lastPlaced[1] === gridY && lastPlaced[2] === usedSelected && lastPlaced[3] === rotation;
 }
 
 //Places block
@@ -2881,7 +2882,7 @@ function placeBlock (givenX, givenY, givenSelected) {
 
   //Push platform to list of blocks placed if it isn"t literally the same block already there
   if (platform) {
-    blocksPlaced.push([gridX, gridY, usedSelected]);
+    blocksPlaced.push([gridX, gridY, usedSelected, rotation]);
     mapGrid[gridX][gridY] = platform;
   }
 }
@@ -3033,8 +3034,8 @@ function placeHurtBlock(givenX, givenY, givenSelected) {
   let worldY = mouseY/mapScale - cameraY;
 
   
-  let gridX = Math.floor(worldX/cellSize);
-  let gridY = Math.floor(worldY/cellSize);
+  let gridX = givenX || Math.floor(worldX/cellSize);
+  let gridY = givenY || Math.floor(worldY/cellSize);
 
   //if no position on grid return
   if (!mapGrid[gridX]) {
@@ -3497,8 +3498,8 @@ function setUpGUI() {
       userStages[currentEditingStage] = structuredClone(mapGrid);
 
       localforage.setItem("platformer_userStages", userStages).then(() =>{
-        console.log("Saved stage")
-      })
+        console.log("Saved stage");
+      });
     }
   });
 
@@ -3571,7 +3572,7 @@ function loadStage(stage){
   for (let x = 0; x < newMap.length; x++){
     for (let y = 0; y < newMap[x].length; y++){
       if (!stage[x] || stage[x][y] === undefined){
-        return
+        return;
       }
 
       let item = stage[x][y];
@@ -3613,7 +3614,7 @@ function loadStage(stage){
           item.bottomBlock, 
           item.cantCollide, 
           item.rotation
-        )
+        );
       }
 
       //If the item type is a player set the player variable to that player
