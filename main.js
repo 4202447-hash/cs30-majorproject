@@ -1830,13 +1830,17 @@ class Platform {
     //Climbchecl
     let gridPositionX = Math.floor(this.x/cellSize);
     let gridPositionY = Math.floor(this.y/cellSize);
-    let isClear = false;
+    let isClearY = false;
+    let isClearX = false;
 
     //Check if the block right above the current one is clear to allow climbs
     if (mapGrid[gridPositionX] && mapGrid[gridPositionX][gridPositionY - 1] === 0){
-      isClear = true;
+      isClearY = true;
     }
 
+    if (mapGrid[gridPositionX] && (mapGrid[gridPositionX + 1][gridPositionY] === 0 || mapGrid[gridPositionX - 1][gridPositionY] === 0)){
+      isClearX = true;
+    }
 
     if (
       abs(itemLeft - this.right) < 5 &&
@@ -1845,7 +1849,8 @@ class Platform {
       !item.attackStates.includes(item.actionState) &&
       millis() - item.lastLedgeClimb > 500 &&
       !item.grounded && this.canClimb &&
-      !this.bottomBlock && isClear
+      !this.bottomBlock && isClearY &&
+      isClearX
     ) {
       
       //Skip ledge climb if this function is being applied to a hurt block
@@ -1865,7 +1870,8 @@ class Platform {
       !item.attackStates.includes(item.actionState) &&
       millis() - item.lastLedgeClimb > 500 &&
       !item.grounded && this.canClimb &&
-      !this.bottomBlock && isClear
+      !this.bottomBlock && isClearY &&
+      isClearX
     ) {
 
       if (this instanceof HurtBlock) {
@@ -1930,12 +1936,16 @@ class Platform {
     ) {
       //If item headbumps object
       if (
-        !this.oneWay &&
         itemRight > this.left + FOOTOFFSET &&
         itemLeft < this.right - FOOTOFFSET &&
         itemTop < this.bottom &&
         itemTop > this.top && item.yVel < 0
       ) {
+        if (this.oneWay){
+          console.log("Returned early because oneWay")
+          return;
+        }
+
         item.y = this.bottom + item.sizeY / 2;
         item.yVel = 0;
         console.log("Headbump");
@@ -2687,13 +2697,7 @@ function displayBlock(givenX, givenY) {
 
       let displayImage = imageTable[selected[4]];
       let drawX = gridX * cellSize + cellSize/2;
-      let drawY;
-      if (selected[selected.length - 1] === "platform") {
-        drawY = gridY * cellSize;
-      }
-      else {
-        drawY = gridY * cellSize + cellSize/2;
-      }
+      let drawY = gridY * cellSize + cellSize/2;
 
       push();
       translate(drawX, drawY);
@@ -2859,15 +2863,8 @@ function placeBlock (givenX, givenY, givenSelected) {
 
   handleDeletes(gridX, gridY);
 
-  let drawY;
+  let drawY = gridY * cellSize + cellSize/2;
   let drawX = gridX * cellSize + cellSize/2;
-  
-  if (usedSelected[usedSelected.length - 1] === "platform") {
-    drawY = gridY * cellSize;
-  }
-  else {
-    drawY = gridY * cellSize + cellSize/2;
-  }
   
   //We have to arrays containing two types of block data. the "platforms array" uses the old system which was made outside of the grid system
   //The mapgrid array is using the new system 
