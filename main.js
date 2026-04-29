@@ -400,9 +400,11 @@ function keyPressed() {
   }
 
   //For looking down
-  if (key === "s" && player.grounded) {
+  if (key === "s") {
     player.phaseCurrentPlatform();
-    player.pressedS = millis();
+    if (player.grounded){
+      player.pressedS = millis();
+    }
   }
 
   if (key === "f") {
@@ -460,7 +462,7 @@ class Humanoid {
     this.lastActionState = "idle";
     this.xScale = 1;
     this.yScale = 1;
-    this.currentPlatform;
+    this.currentPlatform = [];
     this.phasingBottom = false;
     this.lastHitTaken = 0;
 
@@ -554,8 +556,9 @@ class Humanoid {
   }
 
   phaseCurrentPlatform() {
-    if (this.actionState !== "ledgeClimb" && this.grounded) {
+    if (this.actionState !== "ledgeClimb" || !this.grounded) {
       this.phasingBottom = true;
+      this.lastPhase = millis();
     }
   }
 }
@@ -585,6 +588,8 @@ class Player extends Humanoid {
     this.hitCD = 300;
     this.blockCooldown = 1000;
     this.lastBlock = 0;
+    this.lastPhase = 0;
+    this.lastPhaseCD = 150;
 
     //Animation Sheets
     this.runningSheet = "playerRunningSheet";
@@ -945,7 +950,7 @@ class Player extends Humanoid {
     let facing = this.directionFacing === "left" ? -1 : 1;
     let otherFormFacing = keyIsDown(65) ? -1 : keyIsDown(68) ? 1: facing;
 
-    //reset roll state after lengthOfroll amount of time
+    //reset roll state after lengthOfroll amount of time or if faces others way than momentum is leading
     if (
       this.actionState === "rolling" &&
       (millis() - this.lastroll > this.lengthOfroll || Math.sign(this.xVel) !== otherFormFacing) 
@@ -957,6 +962,11 @@ class Player extends Humanoid {
     //Run other functions
     this.checkInputBuffs();
     this.handleState();
+
+    //Reset phase bottom 
+    if (millis() - this.lastPhase > this.lastPhaseCD){
+      this.phasingBottom = false;
+    }
 
     //If attacking run hitbox chcks
     
@@ -1792,7 +1802,6 @@ class Platform {
     item.actionState = "ledgeClimb";
     item.xVel = 0;
     item.yVel = 0;
-    item.currentPlatform = this;
 
     //set items yPos to have top quarter in position - an offset
     item.y = this.top + item.sizeY * 0.25 - 4;
@@ -1831,15 +1840,9 @@ class Platform {
     let gridPositionX = Math.floor(this.x/cellSize);
     let gridPositionY = Math.floor(this.y/cellSize);
     let isClearY = false;
-    let isClearX = false;
 
-    //Check if the block right above the current one is clear to allow climbs
     if (mapGrid[gridPositionX] && mapGrid[gridPositionX][gridPositionY - 1] === 0){
       isClearY = true;
-    }
-
-    if (mapGrid[gridPositionX] && (mapGrid[gridPositionX + 1][gridPositionY] === 0 || mapGrid[gridPositionX - 1][gridPositionY] === 0)){
-      isClearX = true;
     }
 
     if (
@@ -1848,10 +1851,11 @@ class Platform {
       item.directionFacing === "left" &&
       !item.attackStates.includes(item.actionState) &&
       millis() - item.lastLedgeClimb > 500 &&
-      !item.grounded && this.canClimb &&
-      !this.bottomBlock && isClearY &&
-      isClearX
+      !item.grounded && this.canClimb && isClearY 
     ) {
+      if (mapGrid[gridPositionX + 1][gridPositionY] !== 0){
+        return;
+      }
       
       //Skip ledge climb if this function is being applied to a hurt block
       if (this instanceof HurtBlock) {
@@ -1869,10 +1873,12 @@ class Platform {
       item.directionFacing === "right" &&
       !item.attackStates.includes(item.actionState) &&
       millis() - item.lastLedgeClimb > 500 &&
-      !item.grounded && this.canClimb &&
-      !this.bottomBlock && isClearY &&
-      isClearX
+      !item.grounded && this.canClimb && isClearY
     ) {
+      if (mapGrid[gridPositionX - 1][gridPositionY] !== 0){
+        console.log(mapGrid[gridPositionX - 1][gridPositionY]);
+        return;
+      }
 
       if (this instanceof HurtBlock) {
         return true;
@@ -1889,8 +1895,12 @@ class Platform {
       itemBottom <= this.top + max(5, item.yVel + 2)
     ) {
 
-      if (this.bottomBlock || item.phasingBottom === true && item.currentPlatform === this && this.oneWay) {
+      if (this.bottomBlock || item.phasingBottom === true && this.oneWay) {
+        console.log("Phased botom");
         return ;
+      }
+      else{
+        console.log(this.oneWay)
       }
 
       if (item.yVel > 0.2) {
@@ -1902,7 +1912,6 @@ class Platform {
         
         item.timeSinceLand = millis();
         itemHit = true;
-        item.phasingBottom = false;
       }
 
       if (!(this instanceof HurtBlock)) {
@@ -1911,7 +1920,6 @@ class Platform {
       }
 
 
-      item.currentPlatform = this;
       item.y = this.top - item.sizeY / 2;
 
       if (item instanceof Debris && item.yVel > 0.5) {
@@ -1920,13 +1928,12 @@ class Platform {
       }
 
       //Only set yVel to 0 if we"re not going up
-      if (item.yVel > 0) {
+      if (item.yVel >= 0) {
         item.yVel = 0;
-        item.currentPlatform = this;
-        item.phasingBottom = false;
+        item.currentPlatform.push(this);
+        item.grounded = true;
       }
       
-      item.grounded = true;
       return true;
     }
 
@@ -1942,7 +1949,7 @@ class Platform {
         itemTop > this.top && item.yVel < 0
       ) {
         if (this.oneWay){
-          console.log("Returned early because oneWay")
+          console.log("Returned early because oneWay");
           return;
         }
 
@@ -1955,7 +1962,7 @@ class Platform {
       //If item runs into left of object
       if (
         itemRight > this.left &&
-        itemLeft < this.left 
+        itemLeft < this.left && !this.oneWay
       ) {
         item.x = this.left - item.sizeX / 2;
 
@@ -1969,7 +1976,7 @@ class Platform {
       //If item runs into right of object
       if (
         itemLeft < this.right &&
-        itemRight > this.right
+        itemRight > this.right && !this.oneWay
       ) {
         item.x = this.right + item.sizeX / 2;
 
@@ -2178,13 +2185,11 @@ class BreakableObject {
       }
 
       
-      item.currentPlatform = this;
       item.y = this.top - item.sizeY / 2;
 
       //Only set yVel to 0 if we"re not going up
       if (item.yVel > 0) {
         item.yVel = 0;
-        item.currentPlatform = this;
         item.phasingBottom = false;
       }
 
@@ -2681,8 +2686,8 @@ function displayBlock(givenX, givenY) {
   let worldX = mouseX/mapScale - cameraX;
   let worldY = mouseY/mapScale - cameraY;
 
-  let baseGridX = Math.floor(worldX/cellSize);
-  let baseGridY = Math.floor(worldY/cellSize);
+  let baseGridX = givenX || Math.floor(worldX/cellSize);
+  let baseGridY = givenY || Math.floor(worldY/cellSize);
 
   for (let x = 0; x < rows; x++) {
     for(let y = 0; y < cols; y++) {
@@ -2841,7 +2846,7 @@ function checkDuplicate(gridX, gridY, usedSelected){
 }
 
 //Places block
-function placeBlock (givenX, givenY, givenSelected) {
+function placeBlock (givenX, givenY, givenSelected, givenRotation) {
   //Get the position of the actual world relative to the camera
   let worldX = mouseX/mapScale - cameraX;
   let worldY = mouseY/mapScale - cameraY;
@@ -2870,11 +2875,11 @@ function placeBlock (givenX, givenY, givenSelected) {
   //The mapgrid array is using the new system 
   let platform;
   if (usedSelected[usedSelected.length - 1] === "block" || usedSelected[usedSelected.length - 1] === "platform" ) {
-    platform = new Platform(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[2], usedSelected[3], usedSelected[4], usedSelected[5], usedSelected[6], usedSelected[7], usedSelected[8], usedSelected[9], rotation);
+    platform = new Platform(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[2], usedSelected[3], usedSelected[4], usedSelected[5], usedSelected[6], usedSelected[7], usedSelected[8], usedSelected[9], givenRotation || rotation);
   }
 
   else if (usedSelected[usedSelected.length - 1] === "breakableObject"){
-    platform = new BreakableObject(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[4], usedSelected[9], rotation);
+    platform = new BreakableObject(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[4], usedSelected[9], givenRotation || rotation);
   }
 
   //Push platform to list of blocks placed if it isn"t literally the same block already there
@@ -3303,8 +3308,8 @@ function redo() {
   let x = lastBlock[0];
   let y = lastBlock[1];
   let type = lastBlock[2];
-  let destination = lastBlock[3];
-  let toX = lastBlock[4];
+  let destination = lastBlock[3]; //Though this is called destination it could also be the rotation of a block (lastBlock[3] is dependant on what type of block it is)
+  let toX = lastBlock[4]; 
   let toY = lastBlock[5];
 
 
@@ -3314,7 +3319,7 @@ function redo() {
   }
 
   else if (type[type.length - 1] === "block" || type[type.length - 1] === "platform" || type[type.length - 1] === "breakableObject") {
-    placeBlock(x, y, type);
+    placeBlock(x, y, type, destination);
   }
 
   else if (type[type.length - 1] === "hurtBlock") {
