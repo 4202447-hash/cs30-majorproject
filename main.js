@@ -35,7 +35,7 @@ let maxDebris = 100;
 let gates = [];
 let currentStage;
 let screenShake = 0;
-let mapScale = 1.7;
+let mapScale = 2.0;
 
 //For stages and stage creator
 let internalStages = {};
@@ -69,6 +69,7 @@ let fadeRate = 10;
 let stage1;
 
 //Animations and sprites
+//Player
 let playerButtonSheet;
 let playerIdleSheet;
 let playerrollingSheet;
@@ -82,6 +83,8 @@ let playerUpwardPunch;
 let playerLedgeSheet;
 let playerDownSlam;
 let playerBlock;
+
+//Mushroom
 let mushroomButtonImg;
 let mushroomIdle;
 let mushroomAttack;
@@ -89,6 +92,12 @@ let mushroomDie;
 let mushroomRun;
 let mushroomStun;
 let mushroomGotHit;
+
+//Bat
+let batIdle;
+let batFly;
+let batHit;
+let batDeath;
 
 //Props and textures
 let deadGrassTexture;
@@ -159,6 +168,12 @@ function preload() {
   mushroomStun = loadImage("Mushroom/Mushroom-Stun.png");
   mushroomGotHit = loadImage("Mushroom/Mushroom-Hit.png");
   mushroomButtonImg = loadImage("Mushroom/mushroomBtn.png");
+
+  //Bat
+  batIdle = loadImage("Bat/Bat_Fly.png");
+  batDeath = loadImage("Bat/Death.png");
+  batAttack = loadImage("Bat/Attack.png");
+  batHit = loadImage("Bat/Bat_Hit.png");
 
   //Props and textures
   deadGrassTexture = loadImage("PropsTextures/deadGrass.png");
@@ -2400,7 +2415,7 @@ function checkDevModePre() {
 
   if (gameMode === "playing"){
     //Follow player with camera
-    let targetX = width / 2 - player.x - 250 ;
+    let targetX = width / 2 - player.x - 400 ;
     let targetY = height / 2 - player.y - 100; 
 
 
