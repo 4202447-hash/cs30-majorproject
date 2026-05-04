@@ -98,6 +98,7 @@ let batIdle;
 let batFly;
 let batHit;
 let batDeath;
+let batButtonImg;
 
 //Props and textures
 let deadGrassTexture;
@@ -171,9 +172,10 @@ function preload() {
 
   //Bat
   batIdle = loadImage("Bat/Bat_Fly.png");
-  batDeath = loadImage("Bat/Death.png");
-  batAttack = loadImage("Bat/Attack.png");
+  batDeath = loadImage("Bat/Bat_Death.png");
+  batAttack = loadImage("Bat/Bat_Attack.png");
   batHit = loadImage("Bat/Bat_Hit.png");
+  batButtonImg = loadImage("Bat/Bat_Btn.png");
 
   //Props and textures
   deadGrassTexture = loadImage("PropsTextures/deadGrass.png");
@@ -251,6 +253,7 @@ let playerObject;
 let crateBtn;
 let gateBtn;
 let gateInput;
+let batBtn;
 
 //Grid configs
 let mapGrid = [];
@@ -1914,10 +1917,7 @@ class Platform {
         console.log("Phased botom");
         return ;
       }
-      else{
-        console.log(this.oneWay)
-      }
-
+      
       if (item.yVel > 0.2) {
         this.lastActionState = this.actionState;
         
@@ -2372,6 +2372,10 @@ function checkDevModePost() {
       displayMushroom();
     }
 
+    else if (selected[selected.length - 1] === "bat") {
+      displayBat();
+    }
+
     else if (selected === "eraser"){
       displayEraser();
     }
@@ -2730,6 +2734,42 @@ function displayBlock(givenX, givenY) {
   }
 }
 
+//Function which displays selected block
+function displayBat(givenX, givenY) {
+  //The reason things like worldX is used is to make up for the difference between where the mouse is on the screen
+  // and where the mouse is in the world relative to where the camera is looking
+  let worldX = mouseX/mapScale - cameraX;
+  let worldY = mouseY/mapScale - cameraY;
+
+  let baseGridX = givenX || Math.floor(worldX/cellSize);
+  let baseGridY = givenY || Math.floor(worldY/cellSize);
+
+  for (let x = 0; x < rows; x++) {
+    for(let y = 0; y < cols; y++) {
+      let gridX = baseGridX + x;
+      let gridY = baseGridY + y;
+
+      if (mapGrid[gridX] === undefined || mapGrid[gridX][gridY] === undefined) {
+        continue;
+      }
+
+      tint(255, 127);
+
+      let displayImage = imageTable[selected[4]];
+      let drawX = gridX * cellSize + cellSize/2;
+      let drawY = gridY * cellSize + cellSize/2;
+
+      push();
+      translate(drawX, drawY);
+      rotate(rotation);
+      image(displayImage, 0, 0, selected[0], selected[1]);
+      pop();
+
+      noTint();
+    }
+  }
+}
+
 //Function which displays a blank square as a fill in for the gate
 function displayGate(){
   let worldX = mouseX/mapScale - cameraX;
@@ -3019,7 +3059,8 @@ function placeMultipleObjects(type){
   let placementFunctions = {
     "block": placeBlock,
     "hurtBlock": placeHurtBlock,
-    "mushroom": placeMushroom
+    "mushroom": placeMushroom,
+    "bat": placeBat
   };
 
   let targetFunction = placementFunctions[type];
@@ -3154,6 +3195,34 @@ function placeMushroom(givenX, givenY){
   blocksPlaced.push([gridX, gridY, selected]);
   mapGrid[gridX][gridY - 1] = mushroom;
   mapGrid[gridX][gridY] = "mushroom";
+  entities.push(mushroom);
+}
+
+//Places bat onto map for dev mode
+function placeBat(givenX, givenY){
+  let worldX = mouseX/mapScale - cameraX;
+  let worldY = mouseY/mapScale - cameraY;
+
+  //Position on grid
+  let gridX = givenX || Math.floor(worldX/cellSize);
+  let gridY = givenY || Math.floor(worldY/cellSize);
+
+  //if no position on grid return
+  if (!mapGrid[gridX] || checkDuplicate(gridX, gridY, selected)) {
+    return;
+  }
+
+  let drawX = gridX * cellSize + cellSize/2;
+  let drawY = gridY * cellSize + cellSize/2;
+
+  let bat = new Bat(drawX, drawY);
+  
+  handleDeletes(gridX, gridY);
+
+  //If not already a mushroom there place mushroom
+  blocksPlaced.push([gridX, gridY, selected]);
+  mapGrid[gridX][gridY] = bat;
+  entities.push(bat);
 }
 
 //Function to place object based on what the object type is
@@ -3183,6 +3252,10 @@ function placeObject() {
 
     else if (selected[selected.length - 1] === "mushroom") {
       placeMultipleObjects("mushroom");
+    }
+
+    else if (selected[selected.length - 1] === "bat") {
+      placeMultipleObjects("bat");
     }
 
     else if (selected[selected.length - 1] === "gate") {
@@ -3273,7 +3346,7 @@ function undo(){
   let x = lastBlock[0];
   let y = lastBlock[1];
   let type = lastBlock[2];
-  let items = ["block", "hurtBlock", "breakableObject", "gate", "platform"];
+  let items = ["block", "hurtBlock", "breakableObject", "gate", "platform", "bat"];
   if (type[type.length - 1] === "mushroom") {
     mapGrid[x][y] = NOBLOCK;
     mapGrid[x][y - 1] = NOBLOCK;
@@ -3331,6 +3404,10 @@ function redo() {
   //Place block back accordingly
   if (type[type.length - 1] === "mushroom") {
     placeMushroom(x, y);
+  }
+
+  else if (type[type.length - 1] === "bat") {
+    placeBat(x, y);
   }
 
   else if (type[type.length - 1] === "block" || type[type.length - 1] === "platform" || type[type.length - 1] === "breakableObject") {
@@ -3418,7 +3495,10 @@ function initializeTables() {
     backgroundLayer1, backgroundLayer2, backgroundLayer3, backgroundLayerLight,
 
     // GUI
-    redHeart, blueHeart, greenHeart, yellowHeart, emptyHeart
+    redHeart, blueHeart, greenHeart, yellowHeart, emptyHeart,
+
+    //Bat
+    batIdle, batDeath, batAttack, batHit, batButtonImg
   };
   
   //Initialzie blocks for dev mode and stage maker
@@ -3434,6 +3514,7 @@ function initializeTables() {
   playerObject = [100, 100, null, null, "playerButtonSheet", null, null, null, null, null, "player"];
   spike = [24, 24, false, "grey", "spikeUp", 24, 24, true, false, false, "hurtBlock"];
   mushroomBtn = [100, 100, null, null, "mushroomButtonImg", null, null, null, null, null, "mushroom"];
+  batBtn = [40, 40, null, null, "batButtonImg", null, null, null, null, null, "bat"];
   deadGrassPLeft = [24, 9, true, "grey", "deadGrassPlatformL", 24, 9, true, false, false, "platform"];
   deadGrassPRight = [24, 9, true, "grey", "deadGrassPlatformR", 24, 9, true, false, false, "platform"];
   deadGrassPMid = [24, 9, true, "grey", "deadGrassPlatformM", 24, 9, true, false, false, "platform"];
@@ -3457,6 +3538,7 @@ function initializeTables() {
     playerObject,
     spike,
     mushroomBtn,
+    batBtn,
     deadGrassPLeft,
     deadGrassPMid,
     deadGrassPRight,
@@ -3667,6 +3749,12 @@ function loadStage(stage){
       //If the item type is a mushroom make a new mushroom and push it to the entities tab for easier loops
       if (item.type === "mushroom") {
         let shroom = new Mushroom(x * cellSize + cellSize/2, y * cellSize + cellSize/2,  item.startPos, item.endPos, item.directionFacing);
+        newMap[x][y] = shroom;
+        entities.push(shroom);
+      }
+
+      if (item.type === "bat") {
+        let shroom = new Bat(x * cellSize + cellSize/2, y * cellSize + cellSize/2);
         newMap[x][y] = shroom;
         entities.push(shroom);
       }
