@@ -8,12 +8,12 @@ class Bat extends Humanoid{
     this.sizeX = 16 * this.imageScale;
     this.sizeY = 16 * this.imageScale;
     this.moveSpeed = 1.5;
-    this.maxSpeed = 5.5;
-    this.minSpeed = 5;
+    this.maxSpeed = 3.5;
+    this.minSpeed = 3;
     this.time - 0;
     this.type = "bat";
     this.startingY = this.y;
-    this.maxDistance = 10;
+    this.maxDistance = 5;
     
     //Animations
     this.idle = "batIdle";
@@ -89,7 +89,7 @@ class Bat extends Humanoid{
 
     //While it may seem counter intuitive we apply gravity to the bat at a lower level, to mimic the bat actually flapping its wings to go up
     if (this.y - this.startingY < this.maxDistance){
-      this.yVel += GRAVITATIONALFORCE;
+      this.yVel += GRAVITATIONALFORCE / 2;
     }
     
     this.yVel = Math.min(Math.max(this.yVel, -3), 3);
