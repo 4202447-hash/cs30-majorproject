@@ -7,13 +7,13 @@ class Bat extends Humanoid{
     this.imageScale = 1.5;
     this.sizeX = 16 * this.imageScale;
     this.sizeY = 16 * this.imageScale;
-    this.moveSpeed = 1.5;
-    this.maxSpeed = 3.5;
-    this.minSpeed = 3;
+    this.moveSpeed = 5;
+    this.maxSpeed = 1.5;
+    this.minSpeed = 1;
     this.time - 0;
     this.type = "bat";
     this.startingY = this.y;
-    this.maxDistance = 5;
+    this.maxDistance = 3;
     
     //Animations
     this.idle = "batIdle";
@@ -76,11 +76,28 @@ class Bat extends Humanoid{
   }
 
   applyForces(){
-    if (this.moveDir !== 0 && this.moveSpeed !== 0) {
+    let lookAhead = this.directionFacing === "right" ? -25 : 25;
+    let floorCheckX = this.x + lookAhead;
+    let floorCheckY = this.y;
+
+    console.log(this.directionFacing);
+    
+    if (!checkIfPath(floorCheckX, floorCheckY) && this.grounded) {
+      let oppositeX = this.x - lookAhead;
+
+      //if there is a valid path in the opposite side turn around
+      if (checkIfPath(oppositeX, floorCheckY)) {
+        this.directionFacing = this.directionFacing === "left" ? "right" : "left";
+        this.moveDir *= -1;
+      }
+    }
+
+
+    if (this.moveSpeed !== 0) {
       this.speed = this.moveSpeed;
       let accel = this.speed;
 
-      this.moveDir = this.directionFacing === "right" ? -1 : 1;
+      this.moveDir = this.directionFacing === "left" ? -1 : 1;
 
       this.xVel = this.moveDir * accel;
 
@@ -92,7 +109,7 @@ class Bat extends Humanoid{
       this.yVel += GRAVITATIONALFORCE / 2;
     }
     
-    this.yVel = Math.min(Math.max(this.yVel, -3), 3);
+    this.yVel = Math.min(Math.max(this.yVel, -2), 2);
     this.y += this.yVel;
   }
 
@@ -110,19 +127,26 @@ class Bat extends Humanoid{
     push();
     translate(this.x, this.y);
 
+    if (this.directionFacing === "left"){
+      scale(-1, 1);
+    }
+
     //If it is the correct frame to advance frames advance
     if (frameCount % anim.spriteSpeed === 0) {
       let lastFrame = this.currentFrame;
       this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
 
+      if (this.actionState === "idle" && this.currentFrame === 0 && abs(this.startingY - this.y) < this.maxDistance){
+        this.yVel -= Math.round(random(this.minSpeed, this.maxSpeed));
+      }
+      else{
+        this.yVel -= 0.1;
+      }
+
       //If animation shouldn"t loop, and isn"t one time, hold last frame
       if (this.currentFrame === 0 && !anim.shouldLoop && !anim.oneTime) {
         this.currentFrame = lastFrame;
       }
-
-      if (this.actionState === "idle" && this.currentFrame === 0 && (this.startingY - this.y < this.maxDistance)){
-        this.yVel -= Math.round(random(this.minSpeed, this.maxSpeed));
-      } 
 
       //If animation is onetime, return to idle after finished, also deal with attack stages
       else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {
@@ -157,7 +181,7 @@ class Bat extends Humanoid{
           this.lastActionState = this.actionState;
           this.actionState = "idle";
         }
-
+        
         
       }
     }
@@ -169,6 +193,8 @@ class Bat extends Humanoid{
       drawingContext.shadowBlur = 20;
       drawingContext.shadowColor = color(255,0 ,0);
     }
+
+    rotate(Math.min(Math.max(this.y - this.startingY, -20), 20));
 
     image(
       imageTable[this.currentSheet],
