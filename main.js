@@ -1998,7 +1998,6 @@ class Platform {
         if (item instanceof Mushroom && item.grounded) {
           item.directionFacing = item.directionFacing === "left" ? "right" : "left";
         }
-        console.log("Right");
         return true;
       }
     }
@@ -2494,10 +2493,6 @@ function updateAll() {
           }
         }
       }
-      if (entities.includes(mapGrid[x][y]) && gameMode === "playing" && item !== player){
-        item.update();
-        item.applyForces();
-      }
 
       else if (item instanceof Gate && gameMode === "playing") {
         item.isTouched();
@@ -2507,13 +2502,14 @@ function updateAll() {
         item.display();
       }
 
-      if (typeof item !== "string" && typeof item !== "number" && item && item !== player) {
+      //Display anything we missed
+      if (typeof item !== "string" && typeof item !== "number" && item && item !== player && !entities.includes(item)) {
         item.display();
       }
     }
   }
 
-  //We still want to see the player and have them animated
+  //We still want to see the player and have them animated 
   if (entities.includes(player)){
     player.display();
     player.update();
@@ -2521,6 +2517,15 @@ function updateAll() {
     //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
     if (gameMode === "playing"){
       player.applyForces();
+    }
+  }
+
+  //Also loop through the entities seperately (should have little effect on lag since few enemies) since we need to use their true position
+  for (let entity of entities){
+    if (entity !== player){
+      entity.update();
+      entity.applyForces();
+      entity.display();
     }
   }
 }
