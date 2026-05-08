@@ -10,7 +10,7 @@ class Bat extends Humanoid{
     this.moveSpeed = 2;
     this.maxSpeed = 1.5;
     this.minSpeed = 1;
-    this.health = 2;
+    this.health = 1;
     this.time - 0;
     this.type = "bat";
     this.startingY = this.y;
@@ -21,6 +21,7 @@ class Bat extends Humanoid{
     this.attackDistance = 150;
     this.lookDistance = 350;
     this.lastRotation = 0;
+    this.lastHitTaken = 0;
     
     //Animations
     this.idle = "batIdle";
@@ -70,7 +71,7 @@ class Bat extends Humanoid{
 
       death: {
         sheet: this.death,
-        totalFrames: 5,
+        totalFrames: 11,
         imageWidth: 64,
         imageHeight: 64,
         spriteSpeed: 6,
@@ -116,6 +117,10 @@ class Bat extends Humanoid{
     if (this.y - this.startingY < this.maxDistance && this.actionState === "idle"){
       this.yVel += GRAVITATIONALFORCE / 2;
     }
+
+    if (!this.active || this.actionState === "death" && !this.grounded){
+      this.yVel += GRAVITATIONALFORCE;
+    }
     
     this.yVel = Math.min(Math.max(this.yVel, -2), 2);
     this.y += this.yVel;
@@ -144,10 +149,10 @@ class Bat extends Humanoid{
       let lastFrame = this.currentFrame;
       this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
 
-      if (this.actionState === "idle" && this.currentFrame === 0 && abs(this.startingY - this.y) < this.maxDistance){
+      if (this.actionState === "idle" && this.currentFrame === 0 && abs(this.startingY - this.y) < this.maxDistance && this.active){
         this.yVel -= Math.round(random(this.minSpeed, this.maxSpeed));
       }
-      else if (this.actionState === "idle"){
+      else if (this.actionState === "idle" && this.active){
         this.yVel -= 0.1;
       }
 
@@ -170,17 +175,14 @@ class Bat extends Humanoid{
         }
 
         //Whenever we get hit, check if we are still alive
-        else if (this.actionState === "hit") {
-          if (this.health <= 0) {
-            this.actionState = "death";
-            this.active = false;
-            console.log(this.actionState);
-          }
-          this.actionState = "idle";
+        else if (this.actionState === "hit" && this.health <= 0) {
+          this.actionState = "death";
+          this.active = false;
+          console.log(this.actionState);
         }
         
         //Return to idle if no conditions met
-        else if (this.actionState !== "death"){
+        else {
           this.lastActionState = this.actionState;
           this.actionState = "idle";
         }
@@ -192,7 +194,7 @@ class Bat extends Humanoid{
       }
     }
 
-    let angle = Math.min(Math.max(this.y - this.startingY, -5), 20);
+    let angle = this.active ? Math.min(Math.max(this.y - this.startingY, -5), 20) : 0;
     if (this.actionState === 'idle'){
       rotate(angle);
     }
@@ -253,12 +255,18 @@ class Bat extends Humanoid{
 
   //What to do when hit
   onHit() {
-    this.currentFrame = 0;
+    if (millis() - this.lastHitTaken < 250){
+      return;
+    }
+
+    this.health -= 1;
+    this.lastHitTaken = millis();
     this.actionState = "hit";
+    console.log("Been hit");
     this.moveSpeed = 0;
     this.yVel = 0;
-    this.health -= 1;
     this.xVel = player.x < this.x ? this.xVel + 3 : this.xVel - 3;
+    console.log(this.health);
   }
 
   checkCollision(item) {
@@ -321,20 +329,22 @@ class Bat extends Humanoid{
 
   applyHit() {
     //Player dodges it if mushroom is currently attacking and player is rolling
-    if (!this.active || player.actionState === "rolling" && this.actionState === "attack") {
+    if (!this.active || player.actionState === "rolling" && this.actionState === "attack" || this.actionState === "hit") {
+      console.log("Returned because not active");
       return;
     }
 
     //If player is blocking get stunned
-    if (player.actionState === "blocking" && this.directionFacing === player.directionFacing && this.actionState === "attack") {
-      this.actionState = "stun";
+    if (player.actionState === "blocking" && this.directionFacing !== player.directionFacing && this.actionState === "attack" && this.actionState !== "hit") {
+      this.onHit();
       this.moveSpeed = 0;
       this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
-      this.sizeX = this.normalSize;
+      return;
     }
 
     //Dont damage when stunned
     if (this.actionState === "stun") {
+      console.log("Returned because stunned");
       return;
     }
 
@@ -377,7 +387,7 @@ class Bat extends Humanoid{
       return;
     }
 
-    if (abs(dist(this.x, this.y, player.x, player.y)) > this.lookDistance){
+    if (abs(dist(this.x, this.y, player.x, player.y)) < this.lookDistance){
       if (player.x > this.x) {
         this.directionFacing = "right";
         this.moveDir = -1;
@@ -410,7 +420,7 @@ class Bat extends Humanoid{
 
       setTimeout(() => {
         {
-          if (this.actionState === "hit"){
+          if (this.actionState === "hit" || !this.active || this.actionState === "death"){
             return;
           }
           //If player is behind bat

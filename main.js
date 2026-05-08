@@ -2522,10 +2522,19 @@ function updateAll() {
 
   //Also loop through the entities seperately (should have little effect on lag since few enemies) since we need to use their true position
   for (let entity of entities){
-    if (entity !== player){
-      entity.update();
-      entity.applyForces();
-      entity.display();
+    let x = entity.x/cellSize;
+    let y = entity.y/cellSize;
+    
+    if (x < endX){
+      if (entity !== player){
+        entity.display();
+      }
+
+      if (gameMode === "playing"){
+        entity.update();
+        entity.applyForces();
+      }
+
     }
   }
 }
@@ -3225,9 +3234,11 @@ function placeBat(givenX, givenY){
   handleDeletes(gridX, gridY);
 
   //If not already a mushroom there place mushroom
-  blocksPlaced.push([gridX, gridY, selected]);
-  mapGrid[gridX][gridY] = bat;
-  entities.push(bat);
+  if (!(mapGrid[gridX[gridY]] instanceof Bat)){
+    blocksPlaced.push([gridX, gridY, selected]);
+    mapGrid[gridX][gridY] = bat;
+    entities.push(bat);
+  }
 }
 
 //Function to place object based on what the object type is
