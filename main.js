@@ -23,6 +23,7 @@ const EXTRABLOCKS = 5;
 
 //Important Globals and arrays
 let cameraX = -250;
+let freezeFrames = 0;
 let cameraY = 0;
 let floorHeight = 48;
 let groundLevel;
@@ -321,7 +322,13 @@ function setup() {
   );
 }
 
+let animationCounter = 0;
+
 function draw() {
+  if (freezeFrames === 0){
+    animationCounter += 1;
+  }
+
   background(245, 245, 220);
 
   scale(mapScale);
@@ -352,9 +359,12 @@ function draw() {
     if (gameMode === "editor") {
       drawTexts();
     }
-    
 
     handleFade();
+
+    if (freezeFrames > 0){
+      freezeFrames -= 1;
+    }
   }
 }
 
@@ -382,7 +392,9 @@ function drawTexts(){
 
 //Inputs
 function keyPressed() {
-  
+  if (freezeFrames > 0){
+    return
+  }
 
   if (key === "e") {
     selected = eraser;
@@ -439,7 +451,7 @@ function keyReleased() {
 
 //When mouse is pressed attack
 function mousePressed() {
-  if (gameMode === "editor") {
+  if (gameMode === "editor" || freezeFrames > 0) {
     return;
   }
 
@@ -570,6 +582,7 @@ class Humanoid {
       return;
     }
 
+    freezeFrames = 10;
     this.lastHitTaken = millis();
   }
 
@@ -607,7 +620,7 @@ class Player extends Humanoid {
     this.blockCooldown = 1000;
     this.lastBlock = 0;
     this.lastPhase = 0;
-    this.lastPhaseCD = 150;
+    this.lastPhaseCD = 250;
 
     //Animation Sheets
     this.runningSheet = "playerRunningSheet";
@@ -862,7 +875,7 @@ class Player extends Humanoid {
     }
 
     //Apply gravity
-    if (!this.grounded && this.actionState) {
+    if (!this.grounded) {
       this.yVel += GRAVITATIONALFORCE;
     }
 
@@ -1064,9 +1077,12 @@ class Player extends Humanoid {
     }
 
     //If it is the correct frame to advance frames advance
-    if (frameCount % anim.spriteSpeed === 0) {
+    if (animationCounter % anim.spriteSpeed === 0) {
       let lastFrame = this.currentFrame;
-      this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
+
+      if (freezeFrames === 0){
+        this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
+      }
 
       //If animation shouldn"t loop, and isn"t one time, hold last frame
       if (this.currentFrame === 0 && !anim.shouldLoop && !anim.oneTime) {
@@ -1497,9 +1513,11 @@ class Mushroom extends Humanoid {
     }
 
     //If it is the correct frame to advance frames advance
-    if (frameCount % anim.spriteSpeed === 0) {
+    if (animationCounter % anim.spriteSpeed === 0) {
       let lastFrame = this.currentFrame;
-      this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
+      if (freezeFrames === 0){
+        this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
+      }
 
       if (this.actionState === "attack" && this.currentFrame === 0) {
         setTimeout(() => {
@@ -1585,6 +1603,8 @@ class Mushroom extends Humanoid {
 
     //Reset
     pop();
+
+    rect(this.x, this.y, this.sizeX, this.sizeY)
   }
 
   handleState() {
@@ -1693,13 +1713,13 @@ class Mushroom extends Humanoid {
   applyHit() {
     //Player dodges it if mushroom is currently attacking and player is rolling
     if (!this.active || player.actionState === "rolling" && this.actionState === "attack") {
-      console.log("returned");
       return;
     }
 
     //If player is blocking get stunned
     if (player.actionState === "blocking" && this.directionFacing === player.directionFacing && this.actionState === "attack") {
       this.actionState = "stun";
+      freezeFrames = 10;
       this.moveSpeed = 0;
       this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
       this.sizeX = this.normalSize;
@@ -1812,7 +1832,7 @@ class Platform {
 
   //Snaps an item to a ledge with a side
   snapToLedge(item, side) {
-    if (item instanceof Mushroom) {
+    if (item instanceof Mushroom || item instanceof Bat) {
       return;
     }
     
@@ -1827,8 +1847,8 @@ class Platform {
     //Stick item to appropriate edge based off side +- offset
     item.x =
       side === "left"
-        ? this.left - item.sizeX / 2 + 5
-        : this.right + item.sizeX / 2 - 5;
+        ? this.left - item.sizeX / 2 + 10
+        : this.right + item.sizeX / 2 - 10;
     item.directionFacing = side === "left" ? "right" : "left";
   }
 
@@ -1894,7 +1914,6 @@ class Platform {
       !item.grounded && this.canClimb && isClearY
     ) {
       if (mapGrid[gridPositionX - 1][gridPositionY] !== 0){
-        console.log(mapGrid[gridPositionX - 1][gridPositionY]);
         return;
       }
 
@@ -1905,103 +1924,71 @@ class Platform {
       this.snapToLedge(item, "left");
     }
 
-    //Floor check
-    if (
-      itemRight > this.left  &&
-      itemLeft < this.right &&
-      itemBottom >= this.top &&
-      itemBottom <= this.top + max(5, item.yVel + 2)
-    ) {
+    //Proper collisions
+    let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
+    let overlapY = (item.sizeY + this.sizeY) / 2 - Math.abs(item.y - this.y);
 
-      if (this.bottomBlock || item.phasingBottom === true && this.oneWay) {
-        console.log("Phased botom");
-        return ;
-      }
-      
-      if (item.yVel > 0.2) {
-        this.lastActionState = this.actionState;
-        
-        if (item instanceof Player) {
-          item.actionState = "landing";
-        }
-        
-        item.timeSinceLand = millis();
-        itemHit = true;
-      }
-
-      if (!(this instanceof HurtBlock)) {
-        item.lastCheckpointX = item.x;
-        item.lastCheckpointY = item.y;
-      }
-
-
-      item.y = this.top - item.sizeY / 2;
-
-      if (item instanceof Debris && item.yVel > 0.5) {
-        item.yVel *= -0.4;
-        item.xVel *= 0.6;  
-      }
-
-      //Only set yVel to 0 if we"re not going up
-      if (item.yVel >= 0) {
-        item.yVel = 0;
-        item.currentPlatform.push(this);
-        item.grounded = true;
-      }
-      
-      return true;
-    }
-
-    if (
-      itemBottom > this.top + FOOTOFFSET &&
-      itemTop < this.bottom - FOOTOFFSET && item.actionState !== "ledgeClimb"
-    ) {
-      //If item headbumps object
-      if (
-        itemRight > this.left + FOOTOFFSET &&
-        itemLeft < this.right - FOOTOFFSET &&
-        itemTop < this.bottom &&
-        itemTop > this.top && item.yVel < 0
-      ) {
+    if (overlapX > 0 && overlapY > 0) {
+      if (overlapX < overlapY) {
         if (this.oneWay){
-          console.log("Returned early because oneWay");
           return;
         }
 
-        item.y = this.bottom + item.sizeY / 2;
-        item.yVel = 0;
-        console.log("Headbump");
-        return true;
-      }
-
-      //If item runs into left of object
-      if (
-        itemRight > this.left &&
-        itemLeft < this.left && !this.oneWay
-      ) {
-        item.x = this.left - item.sizeX / 2;
-
-        if (item instanceof Mushroom && item.grounded) {
-          item.directionFacing = item.directionFacing === "right" ? "left" : "right";
+        //Hitting right
+        if (item.x > this.x){
+          item.x = item.actionState === "ledgeClimb" ? this.right + item.sizeX / 2 - 10 : this.right + item.sizeX / 2
         }
-        console.log("Left");
-        return true;
-      }
-
-      //If item runs into right of object
-      if (
-        itemLeft < this.right &&
-        itemRight > this.right && !this.oneWay
-      ) {
-        item.x = this.right + item.sizeX / 2;
-
-        if (item instanceof Mushroom && item.grounded) {
-          item.directionFacing = item.directionFacing === "left" ? "right" : "left";
+        else{
+          item.x = item.actionState === "ledgeClimb" ? this.left - item.sizeX / 2 + 10 : this.left - item.sizeX / 2
         }
+
+        if (item instanceof Mushroom && item.grounded){
+          item.directionFacing = item.directionFacing === "left" ? "right" : "left" 
+        }
+
+        item.xVel = 0;
         return true;
+
+      } else {
+        //Y-axis, starting with a floor checl
+          if (item.y < this.y){
+            if (this.bottomBlock || item.phasingBottom === true && this.oneWay) {
+              return ;
+            }
+
+            if (item.yVel >= 0 || !this.oneWay){
+              item.y = this.top - item.sizeY / 2;
+              item.yVel = 0;
+            }
+
+            item.grounded = true;
+            item.currentPlatform.push(this)
+
+            if (item.yVel > 0.2) {
+              if (item instanceof Player) item.actionState = "landing";
+              item.timeSinceLand = millis();
+            }
+
+            if (!(this instanceof HurtBlock)) {
+              item.lastCheckpointX = item.x;
+              item.lastCheckpointY = item.y;
+            }
+
+            return true;
+          }
+
+          //Roof check
+          else{
+            if (this.oneWay){
+              return;
+            }
+
+            item.y = this.bottom + item.sizeY /2
+            item.yVel = 0;
+            return true;
+        }
       }
     }
-    return itemHit;
   }
 }
 
@@ -2328,7 +2315,6 @@ class Gate {
   //What happens when the gate is touched
   isTouched() {
     if (this.touched()) {
-      console.log("entering gate");
       fade = "out";
       setTimeout(() => {
         let nextStage = this.to;
@@ -2477,7 +2463,7 @@ function updateAll() {
       }
 
       if (item) {
-        if ((item instanceof Platform || item instanceof BreakableObject || item instanceof HurtBlock)  && gameMode === "playing") {
+        if ((item instanceof Platform || item instanceof BreakableObject || item instanceof HurtBlock)  && gameMode === "playing" && freezeFrames <= 0) {
           for (let entity of entities) {
             item.checkCollision(entity);
           }
@@ -2512,11 +2498,13 @@ function updateAll() {
   //We still want to see the player and have them animated 
   if (entities.includes(player)){
     player.display();
-    player.update();
 
-    //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
-    if (gameMode === "playing"){
-      player.applyForces();
+    if (freezeFrames <= 0){ 
+      //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
+      if (gameMode === "playing"){
+        player.update();
+        player.applyForces();
+      }
     }
   }
 
@@ -2528,13 +2516,11 @@ function updateAll() {
     if (x < endX){
       if (entity !== player){
         entity.display();
+        if (gameMode === "playing" && freezeFrames === 0){
+          entity.update();
+          entity.applyForces();
+        }
       }
-
-      if (gameMode === "playing"){
-        entity.update();
-        entity.applyForces();
-      }
-
     }
   }
 }
@@ -2598,10 +2584,15 @@ function getItemsInArea(x, y, sizeX, sizeY, self) {
   let squareTop = y - sizeY/2;
   let squareBottom = y + sizeY/2;
 
-  for (let i = 0; i < mapGrid.length; i++){
-    for (let j = 0; j < mapGrid[i].length; j++){
+  let startX = Math.max(0, Math.floor(squareLeft / cellSize));
+  let endX = Math.min(mapGrid.length - 1, Math.floor(squareRight / cellSize));
+  let startY = Math.max(0, Math.floor(squareTop / cellSize));
+  let endY = Math.min(mapGrid[0].length - 1, Math.floor(squareBottom / cellSize));
+
+  for (let i = startX; i <= endX; i++){
+    for (let j = startY; j < endY; j++){
       let object = mapGrid[i][j];
-      if (entities.includes(object) || object instanceof BreakableObject){
+      if (object instanceof BreakableObject){
         let top = object.y - object.sizeY / 2;
         let bottom = object.y + object.sizeY / 2;
         let left = object.x - object.sizeX / 2;
@@ -2611,6 +2602,21 @@ function getItemsInArea(x, y, sizeX, sizeY, self) {
 
         if (!isOutside) {
           items.push(object);
+        } 
+      }
+    }
+
+    for (let entity of entities){
+      if (entity !== player){
+        let top = entity.y - entity.sizeY / 2;
+        let bottom = entity.y + entity.sizeY / 2;
+        let left = entity.x - entity.sizeX / 2;
+        let right = entity.x + entity.sizeX / 2;
+    
+        let isOutside = left > squareRight || right < squareLeft || top > squareBottom || bottom < squareTop; 
+
+        if (!isOutside) {
+          items.push(entity);
         } 
       }
     }
@@ -2903,6 +2909,7 @@ function handleDeletes(gridX, gridY){
     deleteArea(gridX, gridY - 1, 1, 2);
   }
   else {
+    entities = entities.filter(entity => entity !== mapGrid[gridX][gridY]);
     mapGrid[gridX][gridY] = NOBLOCK;
   }
 
@@ -3469,6 +3476,8 @@ function changeSize(rowsOrCols, change){
 function deleteArea(xStart, yStart, rows, cols) {
   for (let x = xStart; x < rows + xStart; x++ ) {
     for (let y = yStart; y < cols + yStart; y++) {
+      let item = mapGrid[x][y];
+      entities = entities.filter(entity => entity !== item);
       mapGrid[x][y] = NOBLOCK;
     }
   }
@@ -3530,7 +3539,7 @@ function initializeTables() {
   playerObject = [100, 100, null, null, "playerButtonSheet", null, null, null, null, null, "player"];
   spike = [24, 24, false, "grey", "spikeUp", 24, 24, true, false, false, "hurtBlock"];
   mushroomBtn = [100, 100, null, null, "mushroomButtonImg", null, null, null, null, null, "mushroom"];
-  batBtn = [40, 40, null, null, "batButtonImg", null, null, null, null, null, "bat"];
+  batBtn = [60, 60, null, null, "batButtonImg", null, null, null, null, null, "bat"];
   deadGrassPLeft = [24, 9, true, "grey", "deadGrassPlatformL", 24, 9, true, false, false, "platform"];
   deadGrassPRight = [24, 9, true, "grey", "deadGrassPlatformR", 24, 9, true, false, false, "platform"];
   deadGrassPMid = [24, 9, true, "grey", "deadGrassPlatformM", 24, 9, true, false, false, "platform"];
@@ -3613,7 +3622,6 @@ function setUpGUI() {
       userStages[currentEditingStage] = structuredClone(mapGrid);
 
       localforage.setItem("platformer_userStages", userStages).then(() =>{
-        console.log("Saved stage");
       });
     }
   });
@@ -3764,7 +3772,7 @@ function loadStage(stage){
 
       //If the item type is a mushroom make a new mushroom and push it to the entities tab for easier loops
       if (item.type === "mushroom") {
-        let shroom = new Mushroom(x * cellSize + cellSize/2, y * cellSize + cellSize/2,  item.startPos, item.endPos, item.directionFacing);
+        let shroom = new Mushroom(x * cellSize + cellSize/2, (y + 1) * cellSize + cellSize/2,  item.startPos, item.endPos, item.directionFacing);
         newMap[x][y] = shroom;
         entities.push(shroom);
       }

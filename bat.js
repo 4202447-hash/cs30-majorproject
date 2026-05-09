@@ -4,24 +4,24 @@ class Bat extends Humanoid{
     super(x, y);
 
     //Configs
-    this.imageScale = 1.5;
+    this.imageScale = 2;
     this.sizeX = 16 * this.imageScale;
     this.sizeY = 13 * this.imageScale;
     this.moveSpeed = 2;
-    this.maxSpeed = 1.5;
-    this.minSpeed = 1;
+    this.maxSpeed = 2;
+    this.minSpeed = 1.5;
     this.health = 1;
-    this.time - 0;
     this.type = "bat";
     this.startingY = this.y;
     this.maxDistance = 3;
     this.lastAttack;
     this.attackCD = 1500;
     this.active = true;
-    this.attackDistance = 150;
+    this.attackDistance = 100;
     this.lookDistance = 350;
     this.lastRotation = 0;
     this.lastHitTaken = 0;
+    this.windingUp = false;
     
     //Animations
     this.idle = "batIdle";
@@ -71,13 +71,25 @@ class Bat extends Humanoid{
 
       death: {
         sheet: this.death,
-        totalFrames: 11,
+        totalFrames: 8,
         imageWidth: 64,
         imageHeight: 64,
-        spriteSpeed: 6,
+        spriteSpeed: 3,
         yOffset: 0,
         charHeight: 64,
         startFrame: 0,
+        shouldLoop: false,
+      },
+
+      deathFall: {
+        sheet: this.death,
+        totalFrames: 3,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 3,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 8,
         shouldLoop: false,
       },
     };
@@ -99,11 +111,15 @@ class Bat extends Humanoid{
     }
 
 
-    if (this.actionState === "attack"){
+    if (this.actionState === "attack" || !this.active){
       this.x += this.xVel;
     }
 
-    if (this.moveSpeed !== 0 && this.actionState !== "attack") {
+    if (!this.active){
+      this.xVel -= FRICTIONALFORCE * Math.sign(this.xVel);
+    }
+
+    if (this.moveSpeed !== 0 && this.actionState !== "attack" && this.active) {
       this.speed = this.moveSpeed;
       let accel = this.speed;
 
@@ -113,16 +129,28 @@ class Bat extends Humanoid{
       this.x += this.xVel;
     }
 
+    let distance = this.y - this.startingY
+
     //While it may seem counter intuitive we apply gravity to the bat at a lower level, to mimic the bat actually flapping its wings to go up
-    if (this.y - this.startingY < this.maxDistance && this.actionState === "idle"){
-      this.yVel += GRAVITATIONALFORCE / 2;
+    if (this.y - this.startingY < this.maxDistance && this.actionState === "idle" && !this.windingUp){
+      let intensity = Math.max(0, distance);
+      this.yVel += (GRAVITATIONALFORCE/2) + (intensity * 0.1)
     }
 
-    if (!this.active || this.actionState === "death" && !this.grounded){
+    if ((!this.active || this.actionState === "death")){
       this.yVel += GRAVITATIONALFORCE;
     }
     
     this.yVel = Math.min(Math.max(this.yVel, -2), 2);
+
+    if (this.actionState === "attack" && this.currentFrame === 4) {
+        this.yVel -= 3; //for swoop effect
+    }
+
+    if (this.windingUp) {
+      this.yVel = 0;
+    }
+
     this.y += this.yVel;
   }
 
@@ -149,8 +177,8 @@ class Bat extends Humanoid{
       let lastFrame = this.currentFrame;
       this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
 
-      if (this.actionState === "idle" && this.currentFrame === 0 && abs(this.startingY - this.y) < this.maxDistance && this.active){
-        this.yVel -= Math.round(random(this.minSpeed, this.maxSpeed));
+      if (this.actionState === "idle" && this.currentFrame === 0 && abs(this.startingY - this.y) > this.maxDistance && this.active){
+        this.yVel -= random(this.minSpeed, this.maxSpeed);
       }
       else if (this.actionState === "idle" && this.active){
         this.yVel -= 0.1;
@@ -178,7 +206,6 @@ class Bat extends Humanoid{
         else if (this.actionState === "hit" && this.health <= 0) {
           this.actionState = "death";
           this.active = false;
-          console.log(this.actionState);
         }
         
         //Return to idle if no conditions met
@@ -188,9 +215,6 @@ class Bat extends Humanoid{
         }
         
         
-      }
-      if (this.currentFrame === 4 && this.actionState === "attack"){
-        this.yVel -= 4;
       }
     }
 
@@ -203,6 +227,14 @@ class Bat extends Humanoid{
     }
 
     this.lastRotation = angle;
+
+    if (this.windingUp){
+      drawingContext.shadowBlur = 20;
+        drawingContext.shadowColor = color(255,0 ,0);
+    }
+    else{
+      drawingContext.shadowBlur = 0;
+    }
 
     image(
       imageTable[this.currentSheet],
@@ -227,23 +259,25 @@ class Bat extends Humanoid{
       this.actionState === "attack" || 
       this.actionState === "hit" ||
       this.actionState === "attackWind" ||
-      this.actionState === "attackRecover" ||
-      this.actionState === "death" || !this.active
+      this.actionState === "attackRecover" || this.actionState === "deathFall"
     ) {
       return;
     }
-    if (abs(this.xVel) > 0.2){
+
+    if (this.actionState === "death" && this.currentFrame === 7 && this.grounded){
+      this.actionState = "deathFall"
+    }
+
+
+    if (abs(this.xVel) > 0.2 && this.active){
       this.actionState = "idle";
     }
   }
 
   //Update mushroom
   update() {
-    console.log(this.actionState);
     this.handleState();
-    if (this.checkCollision(player)){
-      this.applyHit();
-    };
+    this.applyHit();
     this.runAI();
 
     //Reset animation frame
@@ -259,14 +293,12 @@ class Bat extends Humanoid{
       return;
     }
 
+    this.windingUp = false;
     this.health -= 1;
     this.lastHitTaken = millis();
     this.actionState = "hit";
-    console.log("Been hit");
     this.moveSpeed = 0;
     this.yVel = 0;
-    this.xVel = player.x < this.x ? this.xVel + 3 : this.xVel - 3;
-    console.log(this.health);
   }
 
   checkCollision(item) {
@@ -330,21 +362,21 @@ class Bat extends Humanoid{
   applyHit() {
     //Player dodges it if mushroom is currently attacking and player is rolling
     if (!this.active || player.actionState === "rolling" && this.actionState === "attack" || this.actionState === "hit") {
-      console.log("Returned because not active");
-      return;
-    }
-
-    //If player is blocking get stunned
-    if (player.actionState === "blocking" && this.directionFacing !== player.directionFacing && this.actionState === "attack" && this.actionState !== "hit") {
-      this.onHit();
-      this.moveSpeed = 0;
-      this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
       return;
     }
 
     //Dont damage when stunned
     if (this.actionState === "stun") {
-      console.log("Returned because stunned");
+      return;
+    }
+
+
+    //If player is blocking get stunned
+    if (this.actionState === "attack" && player.actionState === "blocking" && this.directionFacing !== player.directionFacing && this.actionState === "attack" && this.actionState !== "hit") {
+      this.xVel = this.xVel * -1;
+      freezeFrames = 10;
+      this.onHit();
+      this.moveSpeed = 0;
       return;
     }
 
@@ -387,7 +419,12 @@ class Bat extends Humanoid{
       return;
     }
 
-    if (abs(dist(this.x, this.y, player.x, player.y)) < this.lookDistance){
+    //Use this method of distance check rather than dist() for optimization
+    let dx = this.x - player.x;
+    let dy = this.y - player.y;
+    let distSquared = (dx * dx) + (dy * dy);
+
+    if (abs(distSquared) < this.lookDistance * this.lookDistance){
       if (player.x > this.x) {
         this.directionFacing = "right";
         this.moveDir = -1;
@@ -399,7 +436,7 @@ class Bat extends Humanoid{
     }
 
     //First check if the player is directly in front or behind, and if they are attack them
-    if (abs(dist(this.x, this.y, player.x, player.y)) < this.attackDistance) {
+    if (abs(distSquared) < this.lookDistance * this.attackDistance) {
       this.moveSpeed = 0.25;
       if (player.x > this.x) {
         this.directionFacing = "right";
@@ -414,22 +451,19 @@ class Bat extends Humanoid{
         return;
       }
 
-      drawingContext.shadowBlur = 20;
-      drawingContext.shadowColor = color(255,0 ,0);
       this.yVel = 0;
+      this.windingUp = true;
 
       setTimeout(() => {
         {
           if (this.actionState === "hit" || !this.active || this.actionState === "death"){
             return;
           }
-          //If player is behind bat
           this.actionState = "attack";
           this.lastAttack = millis();
           this.xVel = this.directionFacing === "right" ? 6 : -6;
           this.yVel += 4;
-          drawingContext.shadowBlur = 0;
-          drawingContext.shadowColor = color(255,0 ,0);
+          this.windingUp = false;
         }  
       }, 250);
     }
