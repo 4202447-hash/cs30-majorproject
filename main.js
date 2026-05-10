@@ -37,6 +37,7 @@ let gates = [];
 let currentStage;
 let screenShake = 0;
 let mapScale = 2.0;
+let lightBuffer;
 
 //For stages and stage creator
 let internalStages = {};
@@ -276,7 +277,8 @@ let canPlace = true;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  
+  lightBuffer = createGraphics(windowWidth, windowHeight);
+
   rectMode(CENTER);
   imageMode(CENTER);
   angleMode(DEGREES);
@@ -344,11 +346,11 @@ function draw() {
 
     //Shake screen if screenshake is above 0.1 (screenshake is the magnitude)
     if (screenShake > 0.1){
-      screenShakeX = Math.random(screenShake/2, screenShake);
-      screenShakeY = Math.random(screenShake/2, screenShake);
+      screenShakeX = random(screenShake/2, screenShake);
+      screenShakeY = random(screenShake/2, screenShake);
       screenShake -= 0.1;
     }
-
+    
     translate(cameraX + screenShakeX, cameraY + screenShakeY);
   
     updateAll();
@@ -365,6 +367,7 @@ function draw() {
     if (freezeFrames > 0){
       freezeFrames -= 1;
     }
+    drawLighting();
   }
 }
 
@@ -417,12 +420,6 @@ function keyPressed() {
     player.pressedS = 0;
   }
 
-  if (key === "w") {
-    player.jump();
-    player.inputBuffers.jump = millis();
-    player.pressedS = 0;
-  }
-
   if (keyCode === SHIFT) {
     player.roll();
     player.inputBuffers.roll = millis();
@@ -446,6 +443,14 @@ function keyPressed() {
 function keyReleased() {
   if (key === "s") {
     player.pressedS = 0;
+  }
+  
+  if (key === " "){
+    setTimeout(() => {
+    if (player && player.actionState === "jumpLaunch"){
+      player.yVel = 0;
+    }  
+    }, 50);
   }
 }
 
@@ -523,7 +528,6 @@ class Humanoid {
     //Table of non conflict states
     this.states = [
       "jumpLaunch",
-      "jumpFall",
       "punch1",
       "punch2",
       "punch3",
@@ -545,7 +549,10 @@ class Humanoid {
       return;
     }
 
-    if (this.grounded) {
+    let isCoyote = millis() - this.lastGround < this.coyoteJump && !this.grounded;
+
+    if (this.grounded || isCoyote) {
+      this.yVel = 0;
       this.yVel -= this.jumpStrength;
       this.grounded = false;
       this.lastActionState = this.actionState;
@@ -608,6 +615,9 @@ class Player extends Humanoid {
     this.alrHit = [];
     this.pressedS = 0;
     this.type = "player";
+    this.groundY = 0;
+    this.lastGround = 0;
+    this.coyoteJump = 150;
 
     //Animations
     this.frameWidth = 128;
@@ -1013,7 +1023,7 @@ class Player extends Humanoid {
     }
 
     if (this.actionState === "downSlam") {
-      this.hitItems = getItemsInArea(this.x, this.y + 45, this.rangeX, this.rangeY, this);
+      this.hitItems = getItemsInArea(this.x, this.y + 40, this.rangeX, this.rangeY, this);
     }
 
     //Variable to remember if we have already applied opposite velocity when hitting person
@@ -1307,6 +1317,9 @@ class Mushroom extends Humanoid {
     this.health = 5;
     this.directionFacing = direction || "right";
     this.type = "mushroom";
+    this.attackDistance = 100;
+    this.lookDistance = 200;
+    this.lookHeight = 64;
 
     //Variables specific to entity for enemy AI
     this.startPos = startPos;
@@ -1396,7 +1409,7 @@ class Mushroom extends Humanoid {
         totalFrames: 5,
         imageWidth: 80,
         imageHeight: 64,
-        spriteSpeed: 4,
+        spriteSpeed: 6,
         yOffset: 0,
         charHeight: 64,
         startFrame: 0,
@@ -1408,7 +1421,7 @@ class Mushroom extends Humanoid {
         totalFrames: 8,
         imageWidth: 80,
         imageHeight: 64,
-        spriteSpeed: 5,
+        spriteSpeed: 6,
         yOffset: 0,
         charHeight: 64,
         startFrame: 0,
@@ -1420,7 +1433,7 @@ class Mushroom extends Humanoid {
         totalFrames: 15,
         imageWidth: 80,
         imageHeight: 64,
-        spriteSpeed: 5,
+        spriteSpeed: 6,
         yOffset: 0,
         charHeight: 64,
         startFrame: 0,
@@ -1431,7 +1444,7 @@ class Mushroom extends Humanoid {
         totalFrames: 18,
         imageWidth: 80,
         imageHeight: 64,
-        spriteSpeed: 12,
+        spriteSpeed: 6,
         yOffset: 0,
         charHeight: 64,
         startFrame: 0,
@@ -1563,6 +1576,7 @@ class Mushroom extends Humanoid {
         else if (this.actionState === "gotHit") {
           if (this.health <= 0) {
             this.actionState = "dead";
+            this.moveSpeed = 0;
             this.active = false;
           }
           else {
@@ -1603,8 +1617,6 @@ class Mushroom extends Humanoid {
 
     //Reset
     pop();
-
-    rect(this.x, this.y, this.sizeX, this.sizeY)
   }
 
   handleState() {
@@ -1649,7 +1661,13 @@ class Mushroom extends Humanoid {
     this.moveSpeed = 0;
     this.health -= 1;
     this.sizeX = this.normalSize;
-    this.xVel = player.x < this.x ? this.xVel + 3 : this.xVel - 3;
+    this.xVel = 0;
+
+    let distance = abs(this.x - player.x);
+
+    if (distance > 10){
+      this.xVel = player.x < this.x ? this.xVel + 3 : this.xVel - 3;
+    }
   }
 
   checkCollision(item) {
@@ -1720,6 +1738,7 @@ class Mushroom extends Humanoid {
     if (player.actionState === "blocking" && this.directionFacing === player.directionFacing && this.actionState === "attack") {
       this.actionState = "stun";
       freezeFrames = 10;
+      screenShake = 4;
       this.moveSpeed = 0;
       this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
       this.sizeX = this.normalSize;
@@ -1757,7 +1776,7 @@ class Mushroom extends Humanoid {
       }
 
       player.yVel = player.grounded ? -3 : -5; 
-      screenShake = 8;
+      screenShake = 4;
     }
   }
 
@@ -1773,12 +1792,30 @@ class Mushroom extends Humanoid {
     }
 
     //First check if the player is directly in front or behind, and if they are attack them
-    if (abs(this.x - player.x) < 100 && player.y + player.sizeY/2 > this.y - this.sizeY/2  ) {
+
+    let dx = this.x - player.x;
+    let dy = this.y - player.y;
+    let distSquared = (dx * dx) + (dy * dy);
+    let heightDiff = abs(this.y - player.y);
+
+    if (abs(distSquared) < this.lookDistance * this.lookDistance && heightDiff < this.lookHeight){
+      if (player.x > this.x) {
+        this.directionFacing = "left";
+        this.moveDir = -1;
+      }
+      else if (player.x < this.x ) {
+        this.directionFacing = "right";
+        this.moveDir = 1;
+      }
+    }
+
+    if (abs(distSquared) < this.attackDistance * this.attackDistance && heightDiff < this.lookHeight) {
       if (millis() - this.lastAttack < 1500) {
         return;
       }
 
       this.moveSpeed = 0;
+      this.actionState = "attackWind";
 
       //If player is behind mushroom
       if (player.x > this.x) {
@@ -1789,8 +1826,10 @@ class Mushroom extends Humanoid {
         this.directionFacing = "right";
         this.moveDir = 1;
       }
+    }
 
-      this.actionState = "attackWind";
+    if (this.actionState === "idle" ){
+      this.moveSpeed = 2;
     }
   }
 }
@@ -1962,7 +2001,12 @@ class Platform {
             }
 
             item.grounded = true;
-            item.currentPlatform.push(this)
+            item.groundY = this.y;
+            item.lastGround = millis();
+
+            if (item.currentPlatform){
+              item.currentPlatform.push(this);
+            }
 
             if (item.yVel > 0.2) {
               if (item instanceof Player) item.actionState = "landing";
@@ -2178,7 +2222,7 @@ class BreakableObject {
       itemBottom <= this.top + max(5, item.yVel + 2)
     ) {
 
-      if (item.yVel > 0.2) {
+      if (item.yVel > 0.2 && !(item instanceof Bat)) {
         this.lastActionState = this.actionState;
         item.actionState = "landing";
         item.timeSinceLand = millis();
@@ -2400,15 +2444,18 @@ function checkDevModePost() {
 }
 
 function checkDevModePre() {
-  let sHoldTime = player.pressedS > 0 ? millis() - player.pressedS : 0;
+  let sHoldTime
+  if (player){
+    sHoldTime = player.pressedS > 0 ? millis() - player.pressedS : 0;
+  }
 
   if (gameMode === "playing"){
     //Follow player with camera
     let targetX = width / 2 - player.x - 400 ;
-    let targetY = height / 2 - player.y - 100; 
+    let targetY = height / 2 - (player.groundY + player.y)/ 2 - 125; 
 
 
-    if (sHoldTime > 500 && player.grounded) {
+    if (sHoldTime > 500 && (player.grounded || player.yVel === 0)) {
       let lookDownShift = 75; 
       targetY -= lookDownShift;
     }
@@ -2451,6 +2498,110 @@ function updateAll() {
   let endX = Math.min(startX + blocksWide, mapGrid.length);
   let endY = Math.min(startY + blocksTall, mapGrid[0].length);
 
+  //We still want to see the player and have them animated 
+  if (entities.includes(player)){
+    player.display();
+
+    if (freezeFrames <= 0){ 
+      //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
+      if (gameMode === "playing"){
+        player.update();
+        player.applyForces();
+      }
+    }
+
+    let gridX = Math.floor(player.x / cellSize);
+    let gridY = Math.floor(player.y / cellSize);
+
+    let radius = 2;
+
+    for (let x = gridX - radius; x <= gridX + radius; x++){
+      for (let y = gridY; y <= gridY + radius; y++){
+      let safetyCheck = mapGrid[gridX];
+
+      if (!safetyCheck){
+        return;
+      }
+
+      let item = mapGrid[x][y];
+
+      if (item && item.checkCollision && !entities.includes(item)){
+         item.checkCollision(player);
+      }
+    }
+  }
+}
+
+  //Also loop through the entities seperately (should have little effect on lag since few enemies) since we need to use their true position
+  for (let entity of entities){
+    let x = entity.x/cellSize;
+    let y = entity.y/cellSize;
+    
+    if (x < endX){
+      if (entity !== player){
+        entity.display();
+        if (gameMode === "playing" && freezeFrames === 0){
+          entity.update();
+          entity.applyForces();
+
+          //Here we need to check collisions for the platforms right underneath the entity as collision only runs for the entities in the 
+          //Camera which can cause the entity to fall through the floor
+          let gridX = Math.floor(entity.x / cellSize);
+          let gridY = Math.floor(entity.y / cellSize);
+
+          let radius = 2;
+
+          for (let x = gridX - radius; x <= gridX + radius; x++){
+            for (let y = gridY; y <= gridY + radius; y++){
+              let safetyCheck = mapGrid[gridX];
+
+              if (!safetyCheck){
+                return;
+              }
+
+              let item = mapGrid[x][y];
+
+              if (item && item.checkCollision && !entities.includes(item)){
+                item.checkCollision(entity);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for (let object of brObjects) {
+    for (let chunk of object.chunks) {
+      if (debrisCount > maxDebris){
+        object.chunks.shift();
+        debrisCount--;
+        continue;
+      }
+      let gridX = Math.floor(chunk.x / cellSize);
+      let gridY = Math.floor(chunk.y / cellSize);
+
+      let radius = 2;
+
+      for (let x = gridX - radius; x <= gridX + radius; x++){
+        for (let y = gridY; y <= gridY + radius; y++){
+          let safetyCheck = mapGrid[gridX];
+
+          if (!safetyCheck){
+            return;
+          }
+
+          let item = mapGrid[x][y];
+
+          if (item && item.checkCollision && !entities.includes(item)){
+            item.checkCollision(chunk);
+          }
+        }
+      }
+    }
+  }
+
+
   for (let x = startX; x < endX; x++) {
     for (let y = startY; y < endY; y++) {
       //Safety check
@@ -2460,24 +2611,6 @@ function updateAll() {
       }
       if (!item){
         continue;
-      }
-
-      if (item) {
-        if ((item instanceof Platform || item instanceof BreakableObject || item instanceof HurtBlock)  && gameMode === "playing" && freezeFrames <= 0) {
-          for (let entity of entities) {
-            item.checkCollision(entity);
-          }
-          for (let object of brObjects) {
-            for (let chunk of object.chunks) {
-              if (debrisCount > maxDebris){
-                object.chunks.shift();
-                debrisCount--;
-                continue;
-              }
-              item.checkCollision(chunk);
-            }
-          }
-        }
       }
 
       else if (item instanceof Gate && gameMode === "playing") {
@@ -2491,35 +2624,6 @@ function updateAll() {
       //Display anything we missed
       if (typeof item !== "string" && typeof item !== "number" && item && item !== player && !entities.includes(item)) {
         item.display();
-      }
-    }
-  }
-
-  //We still want to see the player and have them animated 
-  if (entities.includes(player)){
-    player.display();
-
-    if (freezeFrames <= 0){ 
-      //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
-      if (gameMode === "playing"){
-        player.update();
-        player.applyForces();
-      }
-    }
-  }
-
-  //Also loop through the entities seperately (should have little effect on lag since few enemies) since we need to use their true position
-  for (let entity of entities){
-    let x = entity.x/cellSize;
-    let y = entity.y/cellSize;
-    
-    if (x < endX){
-      if (entity !== player){
-        entity.display();
-        if (gameMode === "playing" && freezeFrames === 0){
-          entity.update();
-          entity.applyForces();
-        }
       }
     }
   }
@@ -2585,9 +2689,9 @@ function getItemsInArea(x, y, sizeX, sizeY, self) {
   let squareBottom = y + sizeY/2;
 
   let startX = Math.max(0, Math.floor(squareLeft / cellSize));
-  let endX = Math.min(mapGrid.length - 1, Math.floor(squareRight / cellSize));
+  let endX = Math.min(mapGrid.length - 1, Math.ceil(squareRight / cellSize));
   let startY = Math.max(0, Math.floor(squareTop / cellSize));
-  let endY = Math.min(mapGrid[0].length - 1, Math.floor(squareBottom / cellSize));
+  let endY = Math.min(mapGrid[0].length - 1, Math.ceil(squareBottom / cellSize));
 
   for (let i = startX; i <= endX; i++){
     for (let j = startY; j < endY; j++){
@@ -4100,3 +4204,4 @@ function moveDown(amount){
   mapGrid = newGrid;
   return newGrid;
 }
+

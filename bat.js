@@ -8,9 +8,10 @@ class Bat extends Humanoid{
     this.sizeX = 16 * this.imageScale;
     this.sizeY = 13 * this.imageScale;
     this.moveSpeed = 2;
+    this.lookHeight = 64;
     this.maxSpeed = 2;
     this.minSpeed = 1.5;
-    this.health = 1;
+    this.health = 2;
     this.type = "bat";
     this.startingY = this.y;
     this.maxDistance = 3;
@@ -264,7 +265,7 @@ class Bat extends Humanoid{
       return;
     }
 
-    if (this.actionState === "death" && this.currentFrame === 7 && this.grounded){
+    if (this.actionState === "death" && this.currentFrame === 7 && this.grounded && this.yVel === 0){
       this.actionState = "deathFall"
     }
 
@@ -288,17 +289,23 @@ class Bat extends Humanoid{
   }
 
   //What to do when hit
-  onHit() {
+  onHit(blocked) {
     if (millis() - this.lastHitTaken < 250){
       return;
     }
 
     this.windingUp = false;
-    this.health -= 1;
+    if (blocked){
+      this.health = 0;
+    }
+    else{
+      this.health -= 1;
+    }
     this.lastHitTaken = millis();
     this.actionState = "hit";
     this.moveSpeed = 0;
     this.yVel = 0;
+    this.xVel = 0;
   }
 
   checkCollision(item) {
@@ -375,7 +382,8 @@ class Bat extends Humanoid{
     if (this.actionState === "attack" && player.actionState === "blocking" && this.directionFacing !== player.directionFacing && this.actionState === "attack" && this.actionState !== "hit") {
       this.xVel = this.xVel * -1;
       freezeFrames = 10;
-      this.onHit();
+      screenShake = 4;
+      this.onHit(true);
       this.moveSpeed = 0;
       return;
     }
@@ -407,7 +415,7 @@ class Bat extends Humanoid{
       }
 
       player.yVel = player.grounded ? -3 : -5; 
-      screenShake = 8;
+      screenShake = 4;
     }
   }
 
@@ -423,8 +431,9 @@ class Bat extends Humanoid{
     let dx = this.x - player.x;
     let dy = this.y - player.y;
     let distSquared = (dx * dx) + (dy * dy);
+    let heightDiff = abs(this.y - player.y);
 
-    if (abs(distSquared) < this.lookDistance * this.lookDistance){
+    if (abs(distSquared) < this.lookDistance * this.lookDistance && heightDiff < this.lookHeight){
       if (player.x > this.x) {
         this.directionFacing = "right";
         this.moveDir = -1;
@@ -436,7 +445,7 @@ class Bat extends Humanoid{
     }
 
     //First check if the player is directly in front or behind, and if they are attack them
-    if (abs(distSquared) < this.lookDistance * this.attackDistance) {
+    if (abs(distSquared) < this.lookDistance * this.attackDistance && heightDiff < this.lookHeight) {
       this.moveSpeed = 0.25;
       if (player.x > this.x) {
         this.directionFacing = "right";
