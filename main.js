@@ -133,6 +133,16 @@ let deadGrassStageR;
 let spikeUp;
 let gateImg;
 
+//Cave background textures
+let cave2;
+let cave3;
+let cave4;
+let cave5;
+let cave6;
+let cave7;
+
+let caves = [cave2, cave3, cave4, cave5, cave6, cave7];
+let caveSpeeds = [1, 0.8, 0.6, 0.4, 0.3, 0.3, 0.1];
 //GUI
 let redHeart;
 let blueHeart;
@@ -221,6 +231,11 @@ function preload() {
 
   //Stages
   stage1 = loadJSON("stage1.json");
+
+  //Cave background
+  for (let i = 1; i < 7; i++){
+    caves[i] = loadImage(`caveBg/${i}.png`);
+  }
 }
 
 //list of images
@@ -331,7 +346,7 @@ function draw() {
     animationCounter += 1;
   }
 
-  background(245, 245, 220);
+  background(220);
 
   scale(mapScale);
   drawBackground();
@@ -367,7 +382,10 @@ function draw() {
     if (freezeFrames > 0){
       freezeFrames -= 1;
     }
-    drawLighting();
+
+    if (gameMode !== "editor") {
+      drawLighting();
+    }
   }
 }
 
@@ -396,7 +414,7 @@ function drawTexts(){
 //Inputs
 function keyPressed() {
   if (freezeFrames > 0){
-    return
+    return;
   }
 
   if (key === "e") {
@@ -447,9 +465,9 @@ function keyReleased() {
   
   if (key === " "){
     setTimeout(() => {
-    if (player && player.actionState === "jumpLaunch"){
-      player.yVel = 0;
-    }  
+      if (player && player.actionState === "jumpLaunch"){
+        player.yVel = 0;
+      }  
     }, 50);
   }
 }
@@ -724,6 +742,7 @@ class Player extends Humanoid {
         yOffset: 28,
         charHeight: 36,
         startFrame: 9,
+        onetime: true,
       },
 
       running: {
@@ -886,7 +905,7 @@ class Player extends Humanoid {
 
     //Apply gravity
     if (!this.grounded) {
-      this.yVel += GRAVITATIONALFORCE;
+      this.yVel = Math.min(30, this.yVel += GRAVITATIONALFORCE);
     }
 
     this.y += this.yVel;
@@ -924,6 +943,10 @@ class Player extends Humanoid {
     
 
     //Movement/Velocity related state handling
+    if (this.yVel === 0){
+      this.yScale = 1;
+    }
+
     if (!this.grounded && this.yVel > 2 && this.actionState !== "downSlam") {
       this.lastActionState = this.actionState;
       this.actionState = "jumpFall";
@@ -943,6 +966,7 @@ class Player extends Humanoid {
         this.actionState = "idle";
       }
     }
+    
 
     //If grounded and standing still Idle
     else if (this.grounded && this.xVel === 0 && this.yVel === 0) {
@@ -1795,7 +1819,7 @@ class Mushroom extends Humanoid {
 
     let dx = this.x - player.x;
     let dy = this.y - player.y;
-    let distSquared = (dx * dx) + (dy * dy);
+    let distSquared = dx * dx + dy * dy;
     let heightDiff = abs(this.y - player.y);
 
     if (abs(distSquared) < this.lookDistance * this.lookDistance && heightDiff < this.lookHeight){
@@ -1975,61 +1999,64 @@ class Platform {
 
         //Hitting right
         if (item.x > this.x){
-          item.x = item.actionState === "ledgeClimb" ? this.right + item.sizeX / 2 - 10 : this.right + item.sizeX / 2
+          item.x = item.actionState === "ledgeClimb" ? this.right + item.sizeX / 2 - 10 : this.right + item.sizeX / 2;
         }
         else{
-          item.x = item.actionState === "ledgeClimb" ? this.left - item.sizeX / 2 + 10 : this.left - item.sizeX / 2
+          item.x = item.actionState === "ledgeClimb" ? this.left - item.sizeX / 2 + 10 : this.left - item.sizeX / 2;
         }
 
         if (item instanceof Mushroom && item.grounded){
-          item.directionFacing = item.directionFacing === "left" ? "right" : "left" 
+          item.directionFacing = item.directionFacing === "left" ? "right" : "left"; 
         }
 
         item.xVel = 0;
         return true;
 
-      } else {
+      }
+      else {
         //Y-axis, starting with a floor checl
-          if (item.y < this.y){
-            if (this.bottomBlock || item.phasingBottom === true && this.oneWay) {
-              return ;
-            }
+        if (item.y < this.y){
+          if (this.bottomBlock || item.phasingBottom === true && this.oneWay) {
+            return ;
+          }
+          item.grounded = true;
+          item.groundY = this.y;
+          item.lastGround = millis();
 
-            if (item.yVel >= 0 || !this.oneWay){
-              item.y = this.top - item.sizeY / 2;
-              item.yVel = 0;
-            }
-
-            item.grounded = true;
-            item.groundY = this.y;
-            item.lastGround = millis();
-
-            if (item.currentPlatform){
-              item.currentPlatform.push(this);
-            }
-
-            if (item.yVel > 0.2) {
-              if (item instanceof Player) item.actionState = "landing";
-              item.timeSinceLand = millis();
-            }
-
-            if (!(this instanceof HurtBlock)) {
-              item.lastCheckpointX = item.x;
-              item.lastCheckpointY = item.y;
-            }
-
-            return true;
+          if (item.currentPlatform){
+            item.currentPlatform.push(this);
           }
 
-          //Roof check
-          else{
-            if (this.oneWay){
-              return;
+          if (item.yVel > 0.2 && item.actionState === "jumpFall") {
+            if (item instanceof Player) {
+              item.actionState = "landing";
             }
+            item.timeSinceLand = millis();
+          }
 
-            item.y = this.bottom + item.sizeY /2
+          if (item.yVel >= 0 || !this.oneWay){
+            item.y = this.top - item.sizeY / 2;
             item.yVel = 0;
-            return true;
+          }
+
+
+          if (!(this instanceof HurtBlock)) {
+            item.lastCheckpointX = item.x;
+            item.lastCheckpointY = item.y;
+          }
+
+          return true;
+        }
+
+        //Roof check
+        else{
+          if (this.oneWay){
+            return;
+          }
+
+          item.y = this.bottom + item.sizeY /2;
+          item.yVel = 0;
+          return true;
         }
       }
     }
@@ -2444,7 +2471,7 @@ function checkDevModePost() {
 }
 
 function checkDevModePre() {
-  let sHoldTime
+  let sHoldTime;
   if (player){
     sHoldTime = player.pressedS > 0 ? millis() - player.pressedS : 0;
   }
@@ -2452,7 +2479,14 @@ function checkDevModePre() {
   if (gameMode === "playing"){
     //Follow player with camera
     let targetX = width / 2 - player.x - 400 ;
-    let targetY = height / 2 - (player.groundY + player.y)/ 2 - 125; 
+    let targetY;
+
+    if (player && player.groundY){
+      targetY = height / 2 - (player.groundY + player.y)/ 2 - 125; 
+    }
+    else{
+      targetY = height / 2 - player.y - 125;
+    }
 
 
     if (sHoldTime > 500 && (player.grounded || player.yVel === 0)) {
@@ -2517,20 +2551,20 @@ function updateAll() {
 
     for (let x = gridX - radius; x <= gridX + radius; x++){
       for (let y = gridY; y <= gridY + radius; y++){
-      let safetyCheck = mapGrid[gridX];
+        let safetyCheck = mapGrid[gridX];
 
-      if (!safetyCheck){
-        return;
-      }
+        if (!safetyCheck){
+          return;
+        }
 
-      let item = mapGrid[x][y];
+        let item = mapGrid[x][y];
 
-      if (item && item.checkCollision && !entities.includes(item)){
-         item.checkCollision(player);
+        if (item && item.checkCollision && !entities.includes(item)){
+          item.checkCollision(player);
+        }
       }
     }
   }
-}
 
   //Also loop through the entities seperately (should have little effect on lag since few enemies) since we need to use their true position
   for (let entity of entities){
@@ -2632,52 +2666,61 @@ function updateAll() {
 //Resizes the canvas with the window
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
-
+  lightBuffer.resizeCanvas(windowWidth, windowHeight);
   exitButton.position(width * 0.9, height * 0.1);
 }
 
 //function to draw a parallex background 
 function drawBackground() {
-  if (gameMode === "menu"){
-    image(backgroundLayer1, width/2, height/2, width, height); 
-    image(backgroundLayerLight, width/2, height/2, width/2, height); 
-  }
-  else {
-    //adjust respective layers speed to change speed at which image moves
-    let bgX = cameraX * LAYER1SPEED % width;
+  // if (gameMode === "menu"){
+  //   image(backgroundLayer1, width/2, height/2, width, height); 
+  //   image(backgroundLayerLight, width/2, height/2, width/2, height); 
+  // }
+  // else {
+  //   //adjust respective layers speed to change speed at which image moves
+  //   let bgX = cameraX * LAYER1SPEED % width;
 
-    image(backgroundLayer1, bgX, BACKGROUNDY, width/2, height);
-    image(backgroundLayer1, bgX + width/2, BACKGROUNDY , width/2, height);
-    image(backgroundLayer1, bgX + width, BACKGROUNDY , width/2, height);
-    image(backgroundLayer1, bgX - width/2, BACKGROUNDY , width/2, height);
-    image(backgroundLayer1, bgX - width, BACKGROUNDY , width/2, height);
+  //   image(backgroundLayer1, bgX, BACKGROUNDY, width/2, height);
+  //   image(backgroundLayer1, bgX + width/2, BACKGROUNDY , width/2, height);
+  //   image(backgroundLayer1, bgX + width, BACKGROUNDY , width/2, height);
+  //   image(backgroundLayer1, bgX - width/2, BACKGROUNDY , width/2, height);
+  //   image(backgroundLayer1, bgX - width, BACKGROUNDY , width/2, height);
 
-    //The aditional offset is because the light is slightly off where I want it
-    let offset = height * 0.04;
+  //   //The aditional offset is because the light is slightly off where I want it
+  //   let offset = height * 0.04;
 
-    image(backgroundLayerLight, bgX, BACKGROUNDY + offset, width/2, height);
-    image(backgroundLayerLight, bgX + width/2, BACKGROUNDY + offset , width/2, height);
-    image(backgroundLayerLight, bgX + width, BACKGROUNDY + offset , width/2, height);
-    image(backgroundLayerLight, bgX - width/2, BACKGROUNDY + offset , width/2, height);
-    image(backgroundLayerLight, bgX - width, BACKGROUNDY + offset , width/2, height);
+  //   image(backgroundLayerLight, bgX, BACKGROUNDY + offset, width/2, height);
+  //   image(backgroundLayerLight, bgX + width/2, BACKGROUNDY + offset , width/2, height);
+  //   image(backgroundLayerLight, bgX + width, BACKGROUNDY + offset , width/2, height);
+  //   image(backgroundLayerLight, bgX - width/2, BACKGROUNDY + offset , width/2, height);
+  //   image(backgroundLayerLight, bgX - width, BACKGROUNDY + offset , width/2, height);
 
-    bgX = cameraX * LAYER2SPEED % width;
-    image(backgroundLayer2, bgX, BACKGROUNDY, width/2, height);
-    image(backgroundLayer2, bgX + width/2, BACKGROUNDY , width/2, height);
-    image(backgroundLayer2, bgX + width, BACKGROUNDY , width/2, height);
-    image(backgroundLayer2, bgX - width/2, BACKGROUNDY , width/2, height);
-    image(backgroundLayer2, bgX - width, BACKGROUNDY , width/2, height);
+  //   bgX = cameraX * LAYER2SPEED % width;
+  //   image(backgroundLayer2, bgX, BACKGROUNDY, width/2, height);
+  //   image(backgroundLayer2, bgX + width/2, BACKGROUNDY , width/2, height);
+  //   image(backgroundLayer2, bgX + width, BACKGROUNDY , width/2, height);
+  //   image(backgroundLayer2, bgX - width/2, BACKGROUNDY , width/2, height);
+  //   image(backgroundLayer2, bgX - width, BACKGROUNDY , width/2, height);
 
-    bgX = cameraX * LAYER3SPEED % width;
-    image(backgroundLayer3, bgX, BACKGROUNDY, width/2, height);
-    image(backgroundLayer3, bgX + width/2, BACKGROUNDY , width/2, height);
-    image(backgroundLayer3, bgX + width, BACKGROUNDY , width/2, height);
-    image(backgroundLayer3, bgX - width/2, BACKGROUNDY , width/2, height);
-    image(backgroundLayer3, bgX - width, BACKGROUNDY , width/2, height);
+  //   bgX = cameraX * LAYER3SPEED % width;
+  //   image(backgroundLayer3, bgX, BACKGROUNDY, width/2, height);
+  //   image(backgroundLayer3, bgX + width/2, BACKGROUNDY , width/2, height);
+  //   image(backgroundLayer3, bgX + width, BACKGROUNDY , width/2, height);
+  //   image(backgroundLayer3, bgX - width/2, BACKGROUNDY , width/2, height);
+  //   image(backgroundLayer3, bgX - width, BACKGROUNDY , width/2, height);
 
 
-  }
+  // }
   
+  for (let i = 6; i > 0; i--){
+    let w = width/2;
+    let bgX = cameraX * caveSpeeds[i] % w;
+    image(caves[i], bgX, height/4, width/2, height/2);
+    image(caves[i], bgX + w, height/4, w, height/2);
+    image(caves[i],  bgX - w, height/4, w, height/2);
+    image(caves[i],  bgX - 2 * w, height/4, w, height/2);
+    image(caves[i],  bgX + 2 * w, height/4, w, height/2);
+  }
 }
 
 //Gets item in an area (for a hitbox type function)
