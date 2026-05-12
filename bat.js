@@ -130,22 +130,22 @@ class Bat extends Humanoid{
       this.x += this.xVel;
     }
 
-    let distance = this.y - this.startingY
+    let distance = this.y - this.startingY;
 
     //While it may seem counter intuitive we apply gravity to the bat at a lower level, to mimic the bat actually flapping its wings to go up
     if (this.y - this.startingY < this.maxDistance && this.actionState === "idle" && !this.windingUp){
       let intensity = Math.max(0, distance);
-      this.yVel += (GRAVITATIONALFORCE/2) + (intensity * 0.1)
+      this.yVel += GRAVITATIONALFORCE/2 + intensity * 0.1;
     }
 
-    if ((!this.active || this.actionState === "death")){
+    if (!this.active || this.actionState === "death"){
       this.yVel += GRAVITATIONALFORCE;
     }
     
     this.yVel = Math.min(Math.max(this.yVel, -2), 2);
 
     if (this.actionState === "attack" && this.currentFrame === 4) {
-        this.yVel -= 3; //for swoop effect
+      this.yVel -= 3; //for swoop effect
     }
 
     if (this.windingUp) {
@@ -231,7 +231,7 @@ class Bat extends Humanoid{
 
     if (this.windingUp){
       drawingContext.shadowBlur = 20;
-        drawingContext.shadowColor = color(255,0 ,0);
+      drawingContext.shadowColor = color(255,0 ,0);
     }
     else{
       drawingContext.shadowBlur = 0;
@@ -266,7 +266,7 @@ class Bat extends Humanoid{
     }
 
     if (this.actionState === "death" && this.currentFrame === 7 && this.grounded && this.yVel === 0){
-      this.actionState = "deathFall"
+      this.actionState = "deathFall";
     }
 
 
@@ -368,29 +368,30 @@ class Bat extends Humanoid{
 
   applyHit() {
     //Player dodges it if mushroom is currently attacking and player is rolling
-    if (!this.active || player.actionState === "rolling" && this.actionState === "attack" || this.actionState === "hit") {
-      return;
-    }
-
-    //Dont damage when stunned
-    if (this.actionState === "stun") {
-      return;
-    }
-
-
-    //If player is blocking get stunned
-    if (this.actionState === "attack" && player.actionState === "blocking" && this.directionFacing !== player.directionFacing && this.actionState === "attack" && this.actionState !== "hit") {
-      this.xVel = this.xVel * -1;
-      freezeFrames = 10;
-      screenShake = 4;
-      this.onHit(true);
-      this.moveSpeed = 0;
+    if (!this.active || this.actionState === "hit" || this.actionState === "stun") {
       return;
     }
 
     //Player hit on touch
     if (this.checkCollision(player)) {
       if (millis() - player.lastHitTaken < 1000) {
+        return;
+      }
+
+      //Dont damage when dodging
+      if (player.actionState === "rolling") {
+        player.didDodge();
+        return;
+      }
+
+      //If player is blocking get stunned
+      if (this.actionState === "attack" && player.actionState === "blocking" && this.directionFacing !== player.directionFacing && this.actionState === "attack" && this.actionState !== "hit") {
+        this.xVel = this.xVel * -1;
+        freezeFrames = 10;
+        screenShake = 4;
+        this.onHit(true);
+        this.moveSpeed = 0;
+        player.didBlock();
         return;
       }
 
@@ -430,7 +431,7 @@ class Bat extends Humanoid{
     //Use this method of distance check rather than dist() for optimization
     let dx = this.x - player.x;
     let dy = this.y - player.y;
-    let distSquared = (dx * dx) + (dy * dy);
+    let distSquared = dx * dx + dy * dy;
     let heightDiff = abs(this.y - player.y);
 
     if (abs(distSquared) < this.lookDistance * this.lookDistance && heightDiff < this.lookHeight){

@@ -386,6 +386,8 @@ function draw() {
     if (gameMode !== "editor") {
       drawLighting();
     }
+
+    player.showGUI();
   }
 }
 
@@ -518,6 +520,8 @@ class Humanoid {
     this.currentPlatform = [];
     this.phasingBottom = false;
     this.lastHitTaken = 0;
+    this.hitCD = 1000;
+    this.flashLength = 150;
 
     //roll
     this.rollCooldown = rollCD || 1000;
@@ -603,7 +607,7 @@ class Humanoid {
 
   //Visual effect for when he gets hit
   gotHit() {
-    if (millis() - this.lastHitTaken < 150) {
+    if (millis() - this.lastHitTaken < this.flashLength) {
       return;
     }
 
@@ -1008,7 +1012,7 @@ class Player extends Humanoid {
       this.moveDir = 0;
     }
 
-    if (this.actionState === "blocking" || millis() - this.lastHitTaken < 500) {
+    if (this.actionState === "blocking" || millis() - this.lastHitTaken < this.hitCD) {
       this.moveDir = 0;
     }
 
@@ -1057,6 +1061,10 @@ class Player extends Humanoid {
     if (this.hitItems.length) {
       for (let item of this.hitItems) {
         if (!this.alrHit.includes(item) && item.active){
+          if (!item){
+            continue;
+          }
+
           this.alrHit.push(item);
           item.onHit();
           screenShake = 4;
@@ -1146,7 +1154,7 @@ class Player extends Humanoid {
     //Vertical offset which adjusts to the different animations (avoid changing)
     let verticalOffset = anim.charHeight * this.imageScale * this.yScale / 2;
 
-    if (millis() - this.lastHitTaken < 150) {
+    if (millis() - this.lastHitTaken < this.flashLength) {
       drawingContext.filter = "brightness(10) contrast(2)"; 
     }
 
@@ -1199,8 +1207,6 @@ class Player extends Humanoid {
       return;
     }
 
-    this.redBar = Math.min(this.redBar + 1, 100) ;
-
     //Upwards punch
     if (this.currentHit === 4) {
       this.currentHit = 1;
@@ -1240,7 +1246,7 @@ class Player extends Humanoid {
       return;
     }
 
-    if (this.actionState.startsWith(this.currentWeapon) || millis() - this.lastHitTaken < 500) {
+    if (this.actionState.startsWith(this.currentWeapon) || millis() - this.lastHitTaken < this.hitCD) {
       return;
     }
     this.lastBlock = millis();
@@ -1257,7 +1263,7 @@ class Player extends Humanoid {
   }
 
   showGUI() {
-    let startingHeight = height * 0.7;
+    let startingHeight = height * 0.8;
     let startingWidth = 30;
     let backgroundBarWidth = 170;
     let barOffset = 90;
@@ -1322,6 +1328,19 @@ class Player extends Humanoid {
     image(greenHeart, startingWidth, height - startingHeight - 150, 32, 32);
 
     pop();
+  }
+
+  //Have seperate functions for these sort of things incase I want to add additional things 
+  didBlock(){
+    player.yellowBar = Math.min(100, player.yellowBar + 25);
+  }
+
+  didDodge(){
+    player.blueBar = Math.min(100, player.yellowBar + 25);
+  }
+
+  didHit(){
+    player.redBar = Math.min(100, player.yellowBar + 5);
   }
 }
 
@@ -1754,28 +1773,31 @@ class Mushroom extends Humanoid {
 
   applyHit() {
     //Player dodges it if mushroom is currently attacking and player is rolling
-    if (!this.active || player.actionState === "rolling" && this.actionState === "attack") {
-      return;
-    }
-
-    //If player is blocking get stunned
-    if (player.actionState === "blocking" && this.directionFacing === player.directionFacing && this.actionState === "attack") {
-      this.actionState = "stun";
-      freezeFrames = 10;
-      screenShake = 4;
-      this.moveSpeed = 0;
-      this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
-      this.sizeX = this.normalSize;
-    }
-
-    //Dont damage when stunned
-    if (this.actionState === "stun") {
+    if (!this.active || this.actionState === "stun") {
       return;
     }
 
     //Player hit on touch
     if (this.checkCollision(player)) {
-      if (millis() - player.lastHitTaken < 1000) {
+      if (millis() - player.lastHitTaken < this.hitCD) {
+        return;
+      }
+
+      //If player is blocking get stunned
+      if (player.actionState === "blocking" && this.directionFacing === player.directionFacing && this.actionState === "attack") {
+        this.actionState = "stun";
+        freezeFrames = 10;
+        screenShake = 4;
+        this.moveSpeed = 0;
+        this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
+        this.sizeX = this.normalSize;
+        player.didBlock();
+        return;
+      }
+
+      //Dont damage when dodging
+      if (player.actionState === "rolling") {
+        player.didDodge();
         return;
       }
 
@@ -2013,6 +2035,7 @@ class Platform {
         return true;
 
       }
+
       else {
         //Y-axis, starting with a floor checl
         if (item.y < this.y){
@@ -2050,6 +2073,7 @@ class Platform {
 
         //Roof check
         else{
+          console.log("roof")
           if (this.oneWay){
             return;
           }
@@ -2531,10 +2555,18 @@ function updateAll() {
 
   let endX = Math.min(startX + blocksWide, mapGrid.length);
   let endY = Math.min(startY + blocksTall, mapGrid[0].length);
-
   //We still want to see the player and have them animated 
   if (entities.includes(player)){
-    player.display();
+    let lastHitCntr = millis() - player.lastHitTaken;
+    if (lastHitCntr < player.hitCD && lastHitCntr > player.flashLength){
+      if (frameCount % 5 === 0){
+        player.display();
+      }
+    }
+    else{
+      player.display();
+    }
+    
 
     if (freezeFrames <= 0){ 
       //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
