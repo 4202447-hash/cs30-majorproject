@@ -605,16 +605,6 @@ class Humanoid {
     }
   }
 
-  //Visual effect for when he gets hit
-  gotHit() {
-    if (millis() - this.lastHitTaken < this.flashLength) {
-      return;
-    }
-
-    freezeFrames = 10;
-    this.lastHitTaken = millis();
-  }
-
   phaseCurrentPlatform() {
     if (this.actionState !== "ledgeClimb" || !this.grounded) {
       this.phasingBottom = true;
@@ -678,6 +668,11 @@ class Player extends Humanoid {
     this.blueBar = 10;
     this.greenBar = 80;
     this.yellowBar = 65;
+
+    this.goalRedBar;
+    this.goalBlueBar;
+    this.goalYellowBar;
+    this.goalGreenBar;
 
     //Input buffering
     //Stores inputs so we can keep trying to run them for 150ms
@@ -931,6 +926,29 @@ class Player extends Humanoid {
 
     //Reset ground state
     this.grounded = false;
+  }
+
+  //Visual effect for when he gets hit
+  gotHit() {
+    if (millis() - this.lastHitTaken < this.hitCD) {
+      return;
+    }
+
+    freezeFrames = 10;
+    this.lastHitTaken = millis();
+    
+    if (this.greenHeartActive){
+      this.greenHeartActive = false;
+    }
+    else if (this.yellowHeartActive){
+      this.yellowHeartActive = false;
+    }
+    else if (this.blueHeartActive){
+      this.blueHeartActive = false;
+    }
+    else if (this.redHeartActive){
+      this.redHeartActive = false;
+    }
   }
 
   //Handles state to match with landing, sprinting ect
@@ -1344,7 +1362,7 @@ class Player extends Humanoid {
       image(greenHeart, startingWidth, height - startingHeight - 150, 32, 32);
     }
     else{
-      image(greenHeart, startingWidth, height - startingHeight - 150, 32, 32);
+      image(emptyHeart, startingWidth, height - startingHeight - 150, 32, 32);
     }
 
     pop();
@@ -1352,15 +1370,15 @@ class Player extends Humanoid {
 
   //Have seperate functions for these sort of things incase I want to add additional things 
   didBlock(){
-    player.yellowBar = Math.min(100, player.yellowBar + 25);
+    this.yellowBar = Math.min(100, this.yellowBar + 25);
   }
 
   didDodge(){
-    player.blueBar = Math.min(100, player.yellowBar + 25);
+    this.goalBlueBar = Math.min(100, this.blueBar + 25);
   }
 
   didHit(){
-    player.redBar = Math.min(100, player.yellowBar + 5);
+    this.goalRedBar = Math.min(100, this.redBar + 5);
   }
 }
 
@@ -2032,9 +2050,10 @@ class Platform {
     //Proper collisions
     let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
     let overlapY = (item.sizeY + this.sizeY) / 2 - Math.abs(item.y - this.y);
+    console.log(overlapX);
 
     if (overlapX > 0 && overlapY > 0) {
-      if (overlapX < overlapY) {
+      if (overlapX > overlapY) {
         if (this.oneWay){
           return;
         }
@@ -2602,7 +2621,7 @@ function updateAll() {
     let radius = 2;
 
     for (let x = gridX - radius; x <= gridX + radius; x++){
-      for (let y = gridY; y <= gridY + radius; y++){
+      for (let y = gridY - radius; y <= gridY + radius; y++){
         let safetyCheck = mapGrid[gridX];
 
         if (!safetyCheck){
