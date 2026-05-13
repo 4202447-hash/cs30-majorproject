@@ -1285,7 +1285,12 @@ class Player extends Humanoid {
     noFill();
     rect(startingWidth + barOffset, height - startingHeight, backgroundBarWidth, 16);
 
-    image(redHeart, startingWidth, height - startingHeight, 32, 32);
+    if (this.redHeartActive){
+      image(redHeart, startingWidth, height - startingHeight, 32, 32);
+    }
+    else{
+      image(emptyHeart, startingWidth, height - startingHeight, 32, 32);
+    }
 
     //Blue
     let blueWidth = map(this.blueBar, 0, 100, 0, 180);
@@ -1299,7 +1304,12 @@ class Player extends Humanoid {
     noFill();
     rect(startingWidth + barOffset, height - startingHeight - 50, backgroundBarWidth, 16);
 
-    image(blueHeart, startingWidth, height - startingHeight - 50, 32, 32);
+    if (this.blueHeartActive){
+      image(blueHeart, startingWidth, height - startingHeight - 50, 32, 32);
+    }
+    else{
+      image(emptyHeart, startingWidth, height - startingHeight - 50, 32, 32);
+    }
 
     //Yellow
     let yellowWidth = map(this.yellowBar, 0, 100, 0, 180);
@@ -1312,7 +1322,12 @@ class Player extends Humanoid {
     noFill();
     rect(startingWidth + barOffset, height - startingHeight - 100, backgroundBarWidth, 16);
 
-    image(yellowHeart, startingWidth, height - startingHeight - 100, 32, 32);
+    if (this.yellowHeartActive){
+      image(yellowHeart, startingWidth, height - startingHeight - 100, 32, 32);
+    }
+    else{
+      image(emptyHeart, startingWidth, height - startingHeight - 100, 32, 32);
+    }
 
     //Green
     let greenWidth = map(this.greenBar, 0, 100, 0, 180);
@@ -1325,7 +1340,12 @@ class Player extends Humanoid {
     noFill();
     rect(startingWidth + barOffset, height - startingHeight - 150, backgroundBarWidth, 16);
 
-    image(greenHeart, startingWidth, height - startingHeight - 150, 32, 32);
+    if (this.greenHeartActive){
+      image(greenHeart, startingWidth, height - startingHeight - 150, 32, 32);
+    }
+    else{
+      image(greenHeart, startingWidth, height - startingHeight - 150, 32, 32);
+    }
 
     pop();
   }
@@ -2073,7 +2093,7 @@ class Platform {
 
         //Roof check
         else{
-          console.log("roof")
+          console.log("roof");
           if (this.oneWay){
             return;
           }
