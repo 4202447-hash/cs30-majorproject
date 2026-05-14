@@ -11,7 +11,7 @@
 //Constants
 const GRAVITATIONALFORCE = 0.3;
 const FRICTIONALFORCE = 0.5;
-const FOOTOFFSET = 5;
+const FOOTOFFSET = 4;
 const LAYER1SPEED = 0.1;
 const LAYER2SPEED = 0.2;
 const LAYER3SPEED = 0.3;
@@ -669,10 +669,10 @@ class Player extends Humanoid {
     this.greenBar = 80;
     this.yellowBar = 65;
 
-    this.goalRedBar;
-    this.goalBlueBar;
-    this.goalYellowBar;
-    this.goalGreenBar;
+    this.goalRedBar = this.redBar;
+    this.goalBlueBar = this.blueBar;
+    this.goalYellowBar = this.yellowBar;
+    this.goalGreenBar = this.greenBar;
 
     //Input buffering
     //Stores inputs so we can keep trying to run them for 150ms
@@ -1085,6 +1085,7 @@ class Player extends Humanoid {
 
           this.alrHit.push(item);
           item.onHit();
+          this.didHit();
           screenShake = 4;
           if (this.actionState.startsWith(this.currentWeapon) && !pushedBack){
             this.xVel += this.directionFacing === "right" ? -2 : 2;
@@ -1100,6 +1101,26 @@ class Player extends Humanoid {
         }
       }
     }
+
+    //Update bars
+    push();
+
+    if (this.redBar !== this.goalRedBar){
+      this.redBar = lerp(this.redBar, this.goalRedBar, 0.1);
+    }
+
+    if (this.blueBar !== this.goalBlueBar){
+      this.blueBar = lerp(this.blueBar, this.goalBlueBar, 0.1);
+    }
+
+    if (this.greenBar !== this.goalGreenBar){
+      this.greenBar = lerp(this.greenBar, this.goalGreenBar, 0.1);
+    }
+
+    if (this.yellowBar !== this.goalYellowBar){
+      this.yellowBar = lerp(this.yellowBar, this.goalYellowBar, 0.1);
+    }
+    pop();
   }
 
   //Check input buffers (tries to run the input until its possible to give quicker game feel)
@@ -1288,19 +1309,30 @@ class Player extends Humanoid {
     let healthOffset = 5;
 
     push();
-    drawingContext.shadowBlur = 5;
-    drawingContext.shadowColor = color(0, 0, 0);
 
     //Red
     let redWith = map(this.redBar, 0, 100, 0, 180);
 
     noStroke();
     fill(220, 0, 0);
+
+    //Effect
+    if (abs(this.redBar - this.goalRedBar) > 0.01){
+      console.log(abs(this.redBar - this.goalRedBar));
+
+      drawingContext.shadowBlur = 25;
+      drawingContext.shadowColor = color(255, 0, 0); 
+      fill(255, 100, 100);
+    }
+
     rect(startingWidth + redWith/2 - healthOffset, height - startingHeight, redWith, 15);
+
+    drawingContext.shadowBlur = 0;
 
     stroke(0);
     fill(0);
     noFill();
+
     rect(startingWidth + barOffset, height - startingHeight, backgroundBarWidth, 16);
 
     if (this.redHeartActive){
@@ -1315,7 +1347,18 @@ class Player extends Humanoid {
 
     noStroke();
     fill(0, 0, 220);
+
+    if (abs(this.blueBar - this.goalBlueBar) > 0.01){
+      console.log(abs(this.blueBar - this.goalBlueBar));
+
+      drawingContext.shadowBlur = 25;
+      drawingContext.shadowColor = color(0, 0, 255); 
+      fill(100, 100, 255);
+    }
+
     rect(startingWidth + blueWidth/2 - healthOffset, height - startingHeight - 50, blueWidth, 15);
+
+    drawingContext.shadowBlur = 0;
 
     stroke(0);
     fill(0);
@@ -1333,12 +1376,23 @@ class Player extends Humanoid {
     let yellowWidth = map(this.yellowBar, 0, 100, 0, 180);
 
     fill(219, 231, 62);
+
+    if (abs(this.yellowBar - this.goalYellowBar) > 0.01){
+      console.log(abs(this.yellowBar - this.goalYellowBar));
+
+      drawingContext.shadowBlur = 25;
+      drawingContext.shadowColor = color(219, 231, 62); 
+      fill(255, 255, 62);
+    }
+
     rect(startingWidth + yellowWidth/2 - healthOffset, height - startingHeight - 100, yellowWidth, 15);
 
     stroke(0);
     fill(0);
     noFill();
     rect(startingWidth + barOffset, height - startingHeight - 100, backgroundBarWidth, 16);
+
+    drawingContext.shadowBlur = 0;
 
     if (this.yellowHeartActive){
       image(yellowHeart, startingWidth, height - startingHeight - 100, 32, 32);
@@ -1351,6 +1405,15 @@ class Player extends Humanoid {
     let greenWidth = map(this.greenBar, 0, 100, 0, 180);
 
     fill(0, 120, 36);
+
+    if (abs(this.greenBarBar - this.goalGreenBar) > 0.01){
+      console.log(abs(this.greenBar - this.goalGreenBar));
+
+      drawingContext.shadowBlur = 25;
+      drawingContext.shadowColor = color(0, 120, 36); 
+      fill(0, 240, 64);
+    }
+
     rect(startingWidth + greenWidth/2 - healthOffset, height - startingHeight - 150, greenWidth, 15);
 
     stroke(0);
@@ -1370,7 +1433,7 @@ class Player extends Humanoid {
 
   //Have seperate functions for these sort of things incase I want to add additional things 
   didBlock(){
-    this.yellowBar = Math.min(100, this.yellowBar + 25);
+    this.goalYellowBar = Math.min(100, this.yellowBar + 50);
   }
 
   didDodge(){
@@ -1399,8 +1462,10 @@ class Mushroom extends Humanoid {
     this.directionFacing = direction || "right";
     this.type = "mushroom";
     this.attackDistance = 100;
-    this.lookDistance = 200;
+    this.lookDistance = 350;
     this.lookHeight = 64;
+    this.startingX = this.x;
+    this.lastSwitch = 0;
 
     //Variables specific to entity for enemy AI
     this.startPos = startPos;
@@ -1547,10 +1612,15 @@ class Mushroom extends Humanoid {
       let oppositeX = this.x - lookAhead;
 
       //if there is a valid path in the opposite side turn around
-      if (checkIfPath(oppositeX, floorCheckY)) {
+      if (checkIfPath(oppositeX, floorCheckY) || abs(this.startingX - this.x > 100)) {
         this.directionFacing = this.directionFacing === "left" ? "right" : "left";
         this.moveDir *= -1;
       }
+    }
+
+    if (checkIfPath(this.x + 24 * Math.sign(this.moveDir), this.y)){
+      this.directionFacing = this.directionFacing === "left" ? "right" : "left";
+      console.log("Yeah");
     }
 
     if (this.moveDir !== 0 && this.moveSpeed !== 0) {
@@ -2050,10 +2120,9 @@ class Platform {
     //Proper collisions
     let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
     let overlapY = (item.sizeY + this.sizeY) / 2 - Math.abs(item.y - this.y);
-    console.log(overlapX);
 
     if (overlapX > 0 && overlapY > 0) {
-      if (overlapX > overlapY) {
+      if (overlapX < overlapY || overlapX < FOOTOFFSET) {
         if (this.oneWay){
           return;
         }
@@ -2066,11 +2135,6 @@ class Platform {
           item.x = item.actionState === "ledgeClimb" ? this.left - item.sizeX / 2 + 10 : this.left - item.sizeX / 2;
         }
 
-        if (item instanceof Mushroom && item.grounded){
-          item.directionFacing = item.directionFacing === "left" ? "right" : "left"; 
-        }
-
-        item.xVel = 0;
         return true;
 
       }
