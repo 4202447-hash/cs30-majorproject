@@ -159,6 +159,10 @@ class Bat extends Humanoid{
     //Identify current anim and define variables
     let anim = this.sprites[this.actionState];
 
+    if (!entities.includes(this)){
+      console.log("Console .log");
+    }
+
     this.frameWidth = this.sprites[this.actionState].imageWidth;
     this.frameHeight = this.sprites[this.actionState].imageHeight;
     this.xCrop = (this.currentFrame + anim.startFrame) * this.frameWidth;

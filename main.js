@@ -419,7 +419,7 @@ function keyPressed() {
     return;
   }
 
-  if (key === "e") {
+  if (key === "e" && gameMode === "editor") {
     selected = eraser;
   }
 
@@ -432,6 +432,10 @@ function keyPressed() {
 
   if (gameMode === "editor") {
     return;
+  }
+
+  if (key === "e") {
+    player.heal();
   }
 
   if (key === " ") {
@@ -630,6 +634,7 @@ class Player extends Humanoid {
     this.groundY = 0;
     this.lastGround = 0;
     this.coyoteJump = 150;
+    this.lastGreenBar = 0;
 
     //Animations
     this.frameWidth = 128;
@@ -904,7 +909,7 @@ class Player extends Humanoid {
 
     //Apply gravity
     if (!this.grounded) {
-      this.yVel = Math.min(30, this.yVel += GRAVITATIONALFORCE);
+      this.yVel = Math.min(23, this.yVel += GRAVITATIONALFORCE);
     }
 
     this.y += this.yVel;
@@ -949,6 +954,9 @@ class Player extends Humanoid {
     else if (this.redHeartActive){
       this.redHeartActive = false;
     }
+
+    //check if dead;
+    this.dead();
   }
 
   //Handles state to match with landing, sprinting ect
@@ -974,7 +982,7 @@ class Player extends Humanoid {
       this.actionState = "jumpFall";
 
       //Elongate player depending on velocity for speed effect
-      this.yScale = Math.min(1.2, 1 + this.yVel * 0.005);
+      this.yScale = Math.min(1.2, 1 + this.yVel * 0.0083); //We use 0.0083 because with this number it will reach a yScale of 1.2 at around 24 yVel speed
       this.xScale = Math.max(0.8, 1 - this.yVel * 0.005);
     }
     else if (this.grounded && this.actionState === "landing") {
@@ -1120,6 +1128,13 @@ class Player extends Humanoid {
     if (this.yellowBar !== this.goalYellowBar){
       this.yellowBar = lerp(this.yellowBar, this.goalYellowBar, 0.1);
     }
+
+    //Regen greenbar
+    if (millis() - this.lastGreenBar > 10000){
+      this.goalGreenBar = Math.min(100, this.goalGreenBar + 10);
+      this.lastGreenBar = millis();
+    }
+
     pop();
   }
 
@@ -1318,7 +1333,6 @@ class Player extends Humanoid {
 
     //Effect
     if (abs(this.redBar - this.goalRedBar) > 0.01){
-      console.log(abs(this.redBar - this.goalRedBar));
 
       drawingContext.shadowBlur = 25;
       drawingContext.shadowColor = color(255, 0, 0); 
@@ -1349,7 +1363,6 @@ class Player extends Humanoid {
     fill(0, 0, 220);
 
     if (abs(this.blueBar - this.goalBlueBar) > 0.01){
-      console.log(abs(this.blueBar - this.goalBlueBar));
 
       drawingContext.shadowBlur = 25;
       drawingContext.shadowColor = color(0, 0, 255); 
@@ -1378,7 +1391,6 @@ class Player extends Humanoid {
     fill(219, 231, 62);
 
     if (abs(this.yellowBar - this.goalYellowBar) > 0.01){
-      console.log(abs(this.yellowBar - this.goalYellowBar));
 
       drawingContext.shadowBlur = 25;
       drawingContext.shadowColor = color(219, 231, 62); 
@@ -1406,8 +1418,7 @@ class Player extends Humanoid {
 
     fill(0, 120, 36);
 
-    if (abs(this.greenBarBar - this.goalGreenBar) > 0.01){
-      console.log(abs(this.greenBar - this.goalGreenBar));
+    if (abs(this.greenBar - this.goalGreenBar) > 0.01){
 
       drawingContext.shadowBlur = 25;
       drawingContext.shadowColor = color(0, 120, 36); 
@@ -1415,6 +1426,8 @@ class Player extends Humanoid {
     }
 
     rect(startingWidth + greenWidth/2 - healthOffset, height - startingHeight - 150, greenWidth, 15);
+
+    drawingContext.shadowBlur = 0;
 
     stroke(0);
     fill(0);
@@ -1442,6 +1455,67 @@ class Player extends Humanoid {
 
   didHit(){
     this.goalRedBar = Math.min(100, this.redBar + 5);
+  }
+
+
+  heal(){
+    if (this.goalRedBar === 100){
+      if (!this.redHeartActive){
+        this.redHeartActive = true;
+        this.goalRedBar = 0;
+      }
+    }
+
+    if (this.goalBlueBar === 100){
+      if (!this.blueHeartActive){
+        this.blueHeartActive = true;
+        this.goalBlueBar = 0;
+      }
+    }
+
+    if (this.goalGreenBar === 100){
+      if (!this.greenHeartActive){
+        this.greenHeartActive = true;
+        this.goalGreenBar = 0;
+      }
+    }
+
+    if (this.goalYellowBar === 100){
+      if (!this.yellowHeartActive){
+        this.yellowHeartActive = true;
+        this.goalYellowBar = 0;
+      }
+    }
+  }
+
+  dead(){
+    if (!this.redHeartActive && !this.blueHeartActive && !this.greenHeartActive && !this.yellowHeartActive){
+      this.xVel = 0;
+      this.yVel = 0;
+
+      if (fade === "none"){
+        fade = "out";
+      }
+
+      this.hitCD = 0;
+      this.rollCD = 0;
+      this.lastPhaseCD = 0;
+      this.blockCooldown = 0;
+      this.lastActionState = "none";
+      this.lastCheckpointX = this.x;
+      this.lastCheckpointX = this.y;
+      this.currentFrame = 0;
+      this.totalImage = 0;
+      this.xCrop = 0;
+      this.lastFrameTime = 0;
+      this.timeSinceLand = 0;
+      freezeFrames = 0;
+      entities = [];
+
+      setTimeout(() => {
+        loadStage(currentStage);
+      }, 500);
+    }
   }
 }
 
@@ -1661,6 +1735,10 @@ class Mushroom extends Humanoid {
   display() {
     //Identify current anim and define variables
     let anim = this.sprites[this.actionState];
+
+    if (!entities.includes(this)){
+      return;
+    }
 
     this.frameWidth = this.sprites[this.actionState].imageWidth;
     this.frameHeight = this.sprites[this.actionState].imageHeight;
@@ -2658,6 +2736,7 @@ function updateAll() {
 
   let endX = Math.min(startX + blocksWide, mapGrid.length);
   let endY = Math.min(startY + blocksTall, mapGrid[0].length);
+
   //We still want to see the player and have them animated 
   if (entities.includes(player)){
     let lastHitCntr = millis() - player.lastHitTaken;
@@ -2705,7 +2784,7 @@ function updateAll() {
   for (let entity of entities){
     let x = entity.x/cellSize;
     let y = entity.y/cellSize;
-    
+
     if (x < endX){
       if (entity !== player){
         entity.display();
@@ -4060,9 +4139,9 @@ function loadStage(stage){
       }
 
       if (item.type === "bat") {
-        let shroom = new Bat(x * cellSize + cellSize/2, y * cellSize + cellSize/2);
-        newMap[x][y] = shroom;
-        entities.push(shroom);
+        let bat = new Bat(x * cellSize + cellSize/2, y * cellSize + cellSize/2);
+        newMap[x][y] = bat;
+        entities.push(bat);
       }
     }
   }
