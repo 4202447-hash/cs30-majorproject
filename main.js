@@ -19,7 +19,7 @@ const BACKGROUNDY = 300;
 const CAMERABOXWIDTH = 200;
 const CAMERAMOVEAMOUNT = 10;
 const NOBLOCK = 0;
-const EXTRABLOCKS = 5;
+const EXTRABLOCKS = 1;
 
 //Important Globals and arrays
 let cameraX = -250;
@@ -1317,7 +1317,7 @@ class Player extends Humanoid {
   }
 
   showGUI() {
-    let startingHeight = height * 0.8;
+    let startingHeight = height * 0.6;
     let startingWidth = 30;
     let backgroundBarWidth = 170;
     let barOffset = 90;
@@ -1510,10 +1510,9 @@ class Player extends Humanoid {
       this.lastFrameTime = 0;
       this.timeSinceLand = 0;
       freezeFrames = 0;
-      entities = [];
 
       setTimeout(() => {
-        loadStage(currentStage);
+        mapGrid = loadStage(currentStage);
       }, 500);
     }
   }
@@ -1536,7 +1535,7 @@ class Mushroom extends Humanoid {
     this.directionFacing = direction || "right";
     this.type = "mushroom";
     this.attackDistance = 100;
-    this.lookDistance = 350;
+    this.lookDistance = 250;
     this.lookHeight = 64;
     this.startingX = this.x;
     this.lastSwitch = 0;
@@ -1679,7 +1678,7 @@ class Mushroom extends Humanoid {
     //If there is nothing ahead of us turn around
     let lookAhead = this.directionFacing === "right" ? -25 : 25;
     let floorCheckX = this.x + lookAhead;
-    let floorCheckY = this.bottom + 10;
+    let floorCheckY = this.bottom + 5;
 
     //Check if there is a valid path in front of you
     if (!checkIfPath(floorCheckX, floorCheckY) && this.grounded) {
@@ -1692,9 +1691,10 @@ class Mushroom extends Humanoid {
       }
     }
 
+    //Check for walls as well and turn around if there is a wall
     if (checkIfPath(this.x + 24 * Math.sign(this.moveDir), this.y)){
+      this.moveDir *= -1
       this.directionFacing = this.directionFacing === "left" ? "right" : "left";
-      console.log("Yeah");
     }
 
     if (this.moveDir !== 0 && this.moveSpeed !== 0) {
@@ -1735,10 +1735,6 @@ class Mushroom extends Humanoid {
   display() {
     //Identify current anim and define variables
     let anim = this.sprites[this.actionState];
-
-    if (!entities.includes(this)){
-      return;
-    }
 
     this.frameWidth = this.sprites[this.actionState].imageWidth;
     this.frameHeight = this.sprites[this.actionState].imageHeight;
@@ -2031,6 +2027,7 @@ class Mushroom extends Humanoid {
     let heightDiff = abs(this.y - player.y);
 
     if (abs(distSquared) < this.lookDistance * this.lookDistance && heightDiff < this.lookHeight){
+      console.log("Following player")
       if (player.x > this.x) {
         this.directionFacing = "left";
         this.moveDir = -1;
@@ -2083,6 +2080,11 @@ class Platform {
     this.cantCollide = cantCollide;
     this.type = "block";
     this.rotation = rotation || 0;
+    
+    this.top = this.y - this.sizeY / 2;
+    this.bottom = this.y + this.sizeY / 2;
+    this.left = this.x - this.sizeX / 2;
+    this.right = this.x + this.sizeX / 2;
   }
 
   //Display platform with texture or fallback as rectangle
@@ -2135,11 +2137,6 @@ class Platform {
     let itemTop = item.y - item.sizeY / 2;
     let handY = item.y - item.sizeY / 4 - 1;
     let itemHit = false;
-
-    this.top = this.y - this.sizeY / 2;
-    this.bottom = this.y + this.sizeY / 2;
-    this.left = this.x - this.sizeX / 2;
-    this.right = this.x + this.sizeX / 2;
 
     //Ledge grab checks
 
@@ -2254,7 +2251,6 @@ class Platform {
 
         //Roof check
         else{
-          console.log("roof");
           if (this.oneWay){
             return;
           }
@@ -2438,79 +2434,77 @@ class BreakableObject {
 
   //Checks collisions
   checkCollision(item) {
-    if (!this.active) {
+    if (this.cantCollide || !this.active) {
       return;
     }
 
-    let itemBottom = item.y + item.sizeY / 2;
-    let itemLeft = item.x - item.sizeX / 2;
-    let itemRight = item.x + item.sizeX / 2;
-    let itemTop = item.y - item.sizeY / 2;
+    //Proper collisions
+    let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
+    let overlapY = (item.sizeY + this.sizeY) / 2 - Math.abs(item.y - this.y);
 
-    if (
-      itemRight > this.left  &&
-      itemLeft < this.right &&
-      itemBottom >= this.top &&
-      itemBottom <= this.top + max(5, item.yVel + 2)
-    ) {
+    if (overlapX > 0 && overlapY > 0) {
+      if (overlapX < overlapY || overlapX < FOOTOFFSET) {
+        if (this.oneWay){
+          return;
+        }
 
-      if (item.yVel > 0.2 && !(item instanceof Bat)) {
-        this.lastActionState = this.actionState;
-        item.actionState = "landing";
-        item.timeSinceLand = millis();
-        item.phasingBottom = false;
+        //Hitting right
+        if (item.x > this.x){
+          item.x = item.actionState === "ledgeClimb" ? this.right + item.sizeX / 2 - 10 : this.right + item.sizeX / 2;
+        }
+        else{
+          item.x = item.actionState === "ledgeClimb" ? this.left - item.sizeX / 2 + 10 : this.left - item.sizeX / 2;
+        }
+
+        return true;
+
       }
 
-      
-      item.y = this.top - item.sizeY / 2;
+      else {
+        //Y-axis, starting with a floor checl
+        if (item.y < this.y){
+          if (this.bottomBlock || item.phasingBottom === true && this.oneWay) {
+            return ;
+          }
+          item.grounded = true;
+          item.groundY = this.y;
+          item.lastGround = millis();
 
-      //Only set yVel to 0 if we"re not going up
-      if (item.yVel > 0) {
-        item.yVel = 0;
-        item.phasingBottom = false;
-      }
+          if (item.currentPlatform){
+            item.currentPlatform.push(this);
+          }
 
-      item.grounded = true;
-    }
+          if (item.yVel > 0.2 && item.actionState === "jumpFall") {
+            if (item instanceof Player) {
+              item.actionState = "landing";
+            }
+            item.timeSinceLand = millis();
+          }
 
-    if (
-      itemBottom > this.top + FOOTOFFSET &&
-      itemTop < this.bottom - FOOTOFFSET
-    ) {
-      //If item runs into left of object
-      if (
-        item.xVel >= 0 &&
-        itemRight > this.left &&
-        itemLeft < this.left &&
-        item.xVel > 0
-      ) {
-        item.x = this.left - item.sizeX / 2;
-        item.xVel = 0;
-        return;
-      }
+          if (item.yVel >= 0 || !this.oneWay){
+            item.y = this.top - item.sizeY / 2;
+            item.yVel = 0;
+          }
 
-      //If item runs into right of object
-      if (
-        item.xVel <= 0 &&
-        itemLeft < this.right &&
-        itemRight > this.right &&
-        item.xVel < 0
-      ) {
-        item.x = this.right + item.sizeX / 2;
-        item.xVel = 0;
-        return;
-      }
 
-      //If item headbumps object
-      if (
-        !this.oneWay &&
-        itemRight > this.left &&
-        itemLeft < this.right &&
-        itemTop <= this.bottom &&
-        itemTop >= this.top
-      ) {
-        item.y = this.bottom + item.sizeY / 2;
-        item.yVel = 0;
+          if (!(this instanceof HurtBlock)) {
+            item.lastCheckpointX = item.x;
+            item.lastCheckpointY = item.y;
+          }
+
+          return true;
+        }
+
+        //Roof check
+        else{
+          if (this.oneWay){
+            return;
+          }
+
+          item.y = this.bottom + item.sizeY /2;
+          item.yVel = 0;
+          return true;
+        }
       }
     }
   }
@@ -2723,6 +2717,10 @@ function checkDevModePre() {
 //Update all entities
 //Helper function to loop through entities and platforms and check collisions
 function updateAll() {
+  if (!mapGrid || !mapGrid[0]){
+    return; //This security check would help in cases of the inbetweens of map loading
+  }
+
   //Get all items that are currently in the screen to avoid lag
   let blocksWide = width/cellSize + EXTRABLOCKS;
   let blocksTall = height/cellSize + EXTRABLOCKS;
@@ -2988,15 +2986,26 @@ function getItemsInArea(x, y, sizeX, sizeY, self) {
 
 //Checks if there is a platform in a given location
 function checkIfPath(x, y) {
-  for (let i = 0; i < mapGrid.length; i++){
-    for (let j = 0; j < mapGrid[i].length; j++){
-      if (mapGrid[i][j] instanceof Platform || mapGrid[i][j] instanceof BreakableObject){
-        let plat = mapGrid[i][j];
+  let gridX = Math.floor(x / cellSize);
+  let gridY = Math.floor(y / cellSize);
+
+  for (let i = -1; i <= 1; i++){
+    for (let j = -1; j <= 1; j++){
+      let trueX = gridX + i;
+      let trueY = gridY + j;
+
+      if (!mapGrid[trueX] || !mapGrid[trueX][trueY]){
+        continue;
+      }
+
+      let block = mapGrid[trueX][trueY];
+
+      if (block instanceof Platform || block instanceof BreakableObject){
         if (
-          x >= plat.left && 
-          x <= plat.right && 
-          y >= plat.top && 
-          y <= plat.bottom
+          x >= block.left && 
+          x <= block.right && 
+          y >= block.top && 
+          y <= block.bottom
         ) {
           return true; // Point is inside a platform
         }
@@ -4048,7 +4057,6 @@ function setUpGUI() {
 function loadStage(stage){
   currentStage = stage;
   let newMap = createGrid(totalRows, totalCols);
-
   //Clear old stuff
   entities = [];
 

@@ -23,6 +23,7 @@ class Bat extends Humanoid{
     this.lastRotation = 0;
     this.lastHitTaken = 0;
     this.windingUp = false;
+    this.moveDir = 1;
     
     //Animations
     this.idle = "batIdle";
@@ -97,18 +98,12 @@ class Bat extends Humanoid{
   }
 
   applyForces(){
-    let lookAhead = this.directionFacing === "right" ? -25 : 25;
+    let lookAhead = this.directionFacing === "right" ? 25 : -25;
     let floorCheckX = this.x + lookAhead;
-    let floorCheckY = this.y;
    
-    if (!checkIfPath(floorCheckX, floorCheckY) && this.grounded) {
-      let oppositeX = this.x - lookAhead;
-
-      //if there is a valid path in the opposite side turn around
-      if (checkIfPath(oppositeX, floorCheckY)) {
-        this.directionFacing = this.directionFacing === "left" ? "right" : "left";
+    if (checkIfPath(floorCheckX, this.y)) {
+        this.directionFacing = this.directionFacing === "right" ? "left" : "right";
         this.moveDir *= -1;
-      }
     }
 
 
@@ -158,10 +153,6 @@ class Bat extends Humanoid{
   display() {
     //Identify current anim and define variables
     let anim = this.sprites[this.actionState];
-
-    if (!entities.includes(this)){
-      console.log("Console .log");
-    }
 
     this.frameWidth = this.sprites[this.actionState].imageWidth;
     this.frameHeight = this.sprites[this.actionState].imageHeight;
@@ -441,11 +432,11 @@ class Bat extends Humanoid{
     if (abs(distSquared) < this.lookDistance * this.lookDistance && heightDiff < this.lookHeight){
       if (player.x > this.x) {
         this.directionFacing = "right";
-        this.moveDir = -1;
+        this.moveDir = 1;
       }
       else if (player.x < this.x ) {
         this.directionFacing = "left";
-        this.moveDir = 1;
+        this.moveDir = -1;
       }
     }
 
