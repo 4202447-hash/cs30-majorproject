@@ -188,12 +188,7 @@ class Bat extends Humanoid{
       //If animation is onetime, return to idle after finished, also deal with attack stages
       else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {
 
-        if (this.actionState === "stun") {
-          this.moveSpeed = 0.25;
-          this.actionState = "idle";
-        }
-
-        else if (this.actionState === "attack") {
+        if (this.actionState === "attack") {
           this.moveSpeed = 2;
           this.actionState = "idle";
         }
@@ -304,60 +299,16 @@ class Bat extends Humanoid{
   }
 
   checkCollision(item) {
-    if (!this.active) {
+    if (this.cantCollide || !this.active) {
       return;
     }
 
-    //For collisions
-    this.top = this.y - this.sizeY / 2;
-    this.bottom = this.y + this.sizeY / 2;
-    this.left = this.x - this.sizeX / 2;
-    this.right = this.x + this.sizeX / 2;
+    //Proper collisions
+    let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
+    let overlapY = (item.sizeY + this.sizeY) / 2 - Math.abs(item.y - this.y);
 
-    let itemBottom = item.y + item.sizeY / 2;
-    let itemLeft = item.x - item.sizeX / 2;
-    let itemRight = item.x + item.sizeX / 2;
-    let itemTop = item.y - item.sizeY / 2;
-
-    if (
-      itemRight > this.left  &&
-      itemLeft < this.right &&
-      itemBottom >= this.top &&
-      itemBottom <= this.top + max(5, item.yVel + 2)
-    ) {
+    if (overlapX > 0 && overlapY > 0) {
       return true;
-    }
-
-    if (
-      itemBottom > this.top + FOOTOFFSET &&
-      itemTop < this.bottom - FOOTOFFSET
-    ) {
-      //If item runs into left of object
-      if (
-        itemRight > this.left &&
-        itemLeft < this.left 
-      ) {
-        return true;
-      }
-
-      //If item runs into right of object
-      if (
-        itemLeft < this.right &&
-        itemRight > this.right 
-      ) {
-        return true;
-      }
-
-      //If item headbumps object
-      if (
-        !this.oneWay &&
-        itemRight > this.left &&
-        itemLeft < this.right &&
-        itemTop <= this.bottom &&
-        itemTop >= this.top
-      ) {
-        return true;
-      }
     }
   }
 
@@ -374,12 +325,12 @@ class Bat extends Humanoid{
       }
 
       //Dont damage when dodging
-      if (player.actionState === "rolling") {
+      if (player.actionState === "rolling" && this.actionState === "attack") {
         player.didDodge();
         return;
       }
 
-      //If player is blocking get stunned
+      //If player is blocking die
       if (this.actionState === "attack" && player.actionState === "blocking" && this.directionFacing !== player.directionFacing && this.actionState === "attack" && this.actionState !== "hit") {
         this.xVel = this.xVel * -1;
         freezeFrames = 10;
@@ -442,22 +393,13 @@ class Bat extends Humanoid{
 
     //First check if the player is directly in front or behind, and if they are attack them
     if (abs(distSquared) < this.lookDistance * this.attackDistance && heightDiff < this.lookHeight) {
-      this.moveSpeed = 0.25;
-      if (player.x > this.x) {
-        this.directionFacing = "right";
-        this.moveDir = -1;
-      }
-      else if (player.x < this.x ) {
-        this.directionFacing = "left";
-        this.moveDir = 1;
-      }
-
       if (millis() - this.lastAttack < this.attackCD) {
         return;
       }
 
       this.yVel = 0;
       this.windingUp = true;
+      this.attacked = true;
 
       setTimeout(() => {
         {

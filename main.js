@@ -38,6 +38,8 @@ let currentStage;
 let screenShake = 0;
 let mapScale = 2.0;
 let lightBuffer;
+let continuedStage;
+let mapOpen = false;
 
 //For stages and stage creator
 let internalStages = {};
@@ -69,6 +71,7 @@ let fade = "none";
 let fadeRate = 10;
 
 let stage1;
+let Stage2;
 
 //Animations and sprites
 //Player
@@ -101,6 +104,25 @@ let batFly;
 let batHit;
 let batDeath;
 let batButtonImg;
+
+//Golem
+let golemAtkA;
+let golemAtkC;
+let golemDeathA;
+let golemDeathB;
+let golemHitA;
+let golemHitB;
+let golemIdleA;
+let golemIdleB;
+let golemRun;
+let golemBtnImg;
+let golemReset;
+let golemStun;
+
+//Pebble
+let pebbleDeath;
+let pebbleIdle;
+let pebbleRun;
 
 //Props and textures
 let deadGrassTexture;
@@ -189,6 +211,25 @@ function preload() {
   batHit = loadImage("Bat/Bat_Hit.png");
   batButtonImg = loadImage("Bat/Bat_Btn.png");
 
+  //Golem
+  golemAtkA = loadImage("Golem/Golem_AttackA.png");
+  golemAtkC = loadImage("Golem/Golem_AttackC.png");
+  golemDeathA = loadImage("Golem/Golem_DeathA.png");
+  golemDeathB = loadImage("Golem/Golem_DeathB.png");
+  golemHitA = loadImage("Golem/Golem_HitA.png");
+  golemHitB = loadImage("Golem/Golem_HitB.png");
+  golemIdleA = loadImage("Golem/Golem_IdleA.png");
+  golemIdleB = loadImage("Golem/Golem_IdleB.png");
+  golemRun = loadImage("Golem/Golem_Run.png");
+  golemBtnImg = loadImage("Golem/golemBtn.png");
+  golemReset = loadImage("Golem/Golem_Reset.png");
+  golemStun = loadImage("Golem/golem_stun.png");
+
+  //Pebble
+  pebbleDeath = loadImage("Pebble/Pebble_Death.png");
+  pebbleIdle = loadImage("Pebble/Pebble_Idle.png");
+  pebbleRun = loadImage("Pebble/Pebble_Run.png");
+
   //Props and textures
   deadGrassTexture = loadImage("PropsTextures/deadGrass.png");
   belowGrass = loadImage("PropsTextures/belowGrass.png");
@@ -230,7 +271,8 @@ function preload() {
   emptyHeart = loadImage("GUI/emptyHeart.png");
 
   //Stages
-  stage1 = loadJSON("stage1.json");
+  stage1 = loadJSON("stages/stage1.json");
+  Stage2 = loadJSON("stages/stage2.json");
 
   //Cave background
   for (let i = 1; i < 7; i++){
@@ -325,8 +367,22 @@ function setup() {
       userStages = {};
       localforage.setItem("platformer_userStages", {});
     }
+
     if (!userStages["Stage 1"]) {
       userStages["Stage 1"] = structuredClone(stage1);
+    }
+
+    if (!userStages["Stage 2"]) {
+      userStages["Stage 2"] = structuredClone(Stage2);
+    }
+
+    localforage.getItem("platformer_lastStage").then((savedData) => {
+    if (savedData){
+      continuedStage = savedData
+    }
+    else {
+      console.log("COund find it")
+      continuedStage = "stage1";
     }
 
     player = new Player(10000, 100000);
@@ -335,13 +391,18 @@ function setup() {
     setUpGUI();
     createMenuUI();
     stageManagerUI();
-  }
-  );
+    })
+  })
 }
 
 let animationCounter = 0;
 
 function draw() {
+  if (mapOpen){
+    drawMiniMap();
+    return;
+  }
+
   if (freezeFrames === 0){
     animationCounter += 1;
   }
@@ -384,7 +445,7 @@ function draw() {
     }
 
     if (gameMode !== "editor") {
-      drawLighting();
+      //drawLighting();
     }
 
     player.showGUI();
@@ -394,7 +455,7 @@ function draw() {
 function drawTexts(){
   let worldX = mouseX/mapScale - cameraX;
   let worldY = mouseY/mapScale - cameraY;
-
+  
   //Position on grid
   let gridX = Math.floor(worldX/cellSize);
   let gridY = Math.floor(worldY/cellSize);
@@ -438,6 +499,10 @@ function keyPressed() {
     player.heal();
   }
 
+  if (key === "m" && gameMode === "playing"){
+    mapOpen = !mapOpen
+  }
+
   if (key === " ") {
     player.jump();
     player.inputBuffers.jump = millis();
@@ -467,14 +532,6 @@ function keyPressed() {
 function keyReleased() {
   if (key === "s") {
     player.pressedS = 0;
-  }
-  
-  if (key === " "){
-    setTimeout(() => {
-      if (player && player.actionState === "jumpLaunch"){
-        player.yVel = 0;
-      }  
-    }, 50);
   }
 }
 
@@ -850,7 +907,7 @@ class Player extends Humanoid {
         totalFrames: 3,
         imageWidth: 128,
         imageHeight: 35,
-        spriteSpeed: 2,
+        spriteSpeed: 8,
         yOffset: 18,
         charHeight: 35,
         startFrame: 0,
@@ -912,6 +969,11 @@ class Player extends Humanoid {
       this.yVel = Math.min(23, this.yVel += GRAVITATIONALFORCE);
     }
 
+    //This is for jumping
+    if (this.yVel < 0 && !keyIsDown(32)) {
+      this.yVel *= 0.6; 
+    }
+
     this.y += this.yVel;
     this.x = this.x + this.xVel;
 
@@ -952,7 +1014,12 @@ class Player extends Humanoid {
       this.blueHeartActive = false;
     }
     else if (this.redHeartActive){
-      this.redHeartActive = false;
+      if (this.goalRedBar === 100){
+        this.goalRedBar = 0;
+      }
+      else{
+        this.redHeartActive = false;
+      }
     }
 
     //check if dead;
@@ -1068,7 +1135,7 @@ class Player extends Humanoid {
 
     if (this.actionState.startsWith(this.currentWeapon)){
       if (this.actionState.includes("Up")) {
-        this.hitItems = getItemsInArea(this.x, this.y - 60, this.rangeX, this.rangeY, this);
+        this.hitItems = getItemsInArea(this.x, this.y - 40, this.rangeX, this.rangeY, this);
       }
 
       else {
@@ -1503,7 +1570,7 @@ class Player extends Humanoid {
       this.blockCooldown = 0;
       this.lastActionState = "none";
       this.lastCheckpointX = this.x;
-      this.lastCheckpointX = this.y;
+      this.lastCheckpointY = this.y;
       this.currentFrame = 0;
       this.totalImage = 0;
       this.xCrop = 0;
@@ -1543,7 +1610,6 @@ class Mushroom extends Humanoid {
     //Variables specific to entity for enemy AI
     this.startPos = startPos;
     this.endPos = endPos;
-    this.hasTarget = false;
     this.hitItems = [];
     this.alrHit = [];
     this.lastAttack;
@@ -1674,16 +1740,19 @@ class Mushroom extends Humanoid {
 
   applyForces() {
     //Movement
+    this.top = this.y - this.sizeY / 2;
+    this.bottom = this.y + this.sizeY / 2;
+    this.left = this.x - this.sizeX / 2;
+    this.right = this.x + this.sizeX / 2;
 
     //If there is nothing ahead of us turn around
     let lookAhead = this.directionFacing === "right" ? -25 : 25;
     let floorCheckX = this.x + lookAhead;
-    let floorCheckY = this.bottom + 5;
+    let floorCheckY = this.bottom + 9;
 
     //Check if there is a valid path in front of you
     if (!checkIfPath(floorCheckX, floorCheckY) && this.grounded) {
       let oppositeX = this.x - lookAhead;
-
       //if there is a valid path in the opposite side turn around
       if (checkIfPath(oppositeX, floorCheckY) || abs(this.startingX - this.x > 100)) {
         this.directionFacing = this.directionFacing === "left" ? "right" : "left";
@@ -1714,8 +1783,8 @@ class Mushroom extends Humanoid {
     this.y += this.yVel;
     this.x = this.x + this.xVel;
 
-    //Apply friction if not rolling, 1/4 in air
-    if ((this.moveDir === 0 || this.moveSpeed === 0) && this.actionState !== "rolling") {
+    //Apply friction, 1/4 in air
+    if ((this.moveDir === 0 || this.moveSpeed === 0)) {
       let currentFriction = this.grounded
         ? FRICTIONALFORCE
         : FRICTIONALFORCE / 4;
@@ -1842,6 +1911,12 @@ class Mushroom extends Humanoid {
 
     //Reset
     pop();
+
+    let lookAhead = this.directionFacing === "right" ? -25 : 25;
+    let floorCheckX = this.x + lookAhead;
+    let floorCheckY = this.bottom + 9;
+
+    rect(floorCheckX, floorCheckY, 5, 5)
   }
 
   handleState() {
@@ -1896,60 +1971,16 @@ class Mushroom extends Humanoid {
   }
 
   checkCollision(item) {
-    if (!this.active) {
+    if (this.cantCollide || !this.active) {
       return;
     }
 
-    //For collisions
-    this.top = this.y - this.sizeY / 2;
-    this.bottom = this.y + this.sizeY / 2;
-    this.left = this.x - this.sizeX / 2;
-    this.right = this.x + this.sizeX / 2;
+    //Proper collisions
+    let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
+    let overlapY = (item.sizeY + this.sizeY) / 2 - Math.abs(item.y - this.y);
 
-    let itemBottom = item.y + item.sizeY / 2;
-    let itemLeft = item.x - item.sizeX / 2;
-    let itemRight = item.x + item.sizeX / 2;
-    let itemTop = item.y - item.sizeY / 2;
-
-    if (
-      itemRight > this.left  &&
-      itemLeft < this.right &&
-      itemBottom >= this.top &&
-      itemBottom <= this.top + max(5, item.yVel + 2)
-    ) {
+    if (overlapX > 0 && overlapY > 0) {
       return true;
-    }
-
-    if (
-      itemBottom > this.top + FOOTOFFSET &&
-      itemTop < this.bottom - FOOTOFFSET
-    ) {
-      //If item runs into left of object
-      if (
-        itemRight > this.left &&
-        itemLeft < this.left 
-      ) {
-        return true;
-      }
-
-      //If item runs into right of object
-      if (
-        itemLeft < this.right &&
-        itemRight > this.right 
-      ) {
-        return true;
-      }
-
-      //If item headbumps object
-      if (
-        !this.oneWay &&
-        itemRight > this.left &&
-        itemLeft < this.right &&
-        itemTop <= this.bottom &&
-        itemTop >= this.top
-      ) {
-        return true;
-      }
     }
   }
 
@@ -1978,7 +2009,7 @@ class Mushroom extends Humanoid {
       }
 
       //Dont damage when dodging
-      if (player.actionState === "rolling") {
+      if (player.actionState === "rolling" && this.actionState === "attack") {
         player.didDodge();
         return;
       }
@@ -2027,7 +2058,6 @@ class Mushroom extends Humanoid {
     let heightDiff = abs(this.y - player.y);
 
     if (abs(distSquared) < this.lookDistance * this.lookDistance && heightDiff < this.lookHeight){
-      console.log("Following player")
       if (player.x > this.x) {
         this.directionFacing = "left";
         this.moveDir = -1;
@@ -2105,7 +2135,7 @@ class Platform {
 
   //Snaps an item to a ledge with a side
   snapToLedge(item, side) {
-    if (item instanceof Mushroom || item instanceof Bat) {
+    if (!(item instanceof Player)) {
       return;
     }
     
@@ -2197,6 +2227,11 @@ class Platform {
     let overlapY = (item.sizeY + this.sizeY) / 2 - Math.abs(item.y - this.y);
 
     if (overlapX > 0 && overlapY > 0) {
+      //This is code which makes the pebble enmy explode upon contact with a block once theyve attacked once
+      if (item instanceof Pebble && item.attacked){
+        item.onHit();
+      }
+
       if (overlapX < overlapY || overlapX < FOOTOFFSET) {
         if (this.oneWay){
           return;
@@ -2280,9 +2315,11 @@ class HurtBlock extends Platform{
       }
 
       //This doesn"t actually work right now as the platform collision function does not return true if it hits a mushroom (need fix)
-      if (item instanceof Mushroom) {
+      else {
         item.health = 0;
-        item.onHit();
+        if (item.active){
+          item.onHit();
+        } 
       }
     }
   }
@@ -2627,7 +2664,8 @@ function checkDevModePost() {
       displayMushroom();
     }
 
-    else if (selected[selected.length - 1] === "bat") {
+    //This function works for most mobs so we can reuse it
+    else if (selected[selected.length - 1] === "bat" || selected[selected.length - 1] === "golem") {
       displayBat();
     }
 
@@ -2764,9 +2802,10 @@ function updateAll() {
     for (let x = gridX - radius; x <= gridX + radius; x++){
       for (let y = gridY - radius; y <= gridY + radius; y++){
         let safetyCheck = mapGrid[gridX];
+        let otherSafetyCheck = mapGrid[x]
 
-        if (!safetyCheck){
-          return;
+        if (!safetyCheck || !otherSafetyCheck){
+          continue;
         }
 
         let item = mapGrid[x][y];
@@ -2798,12 +2837,18 @@ function updateAll() {
           let radius = 2;
 
           for (let x = gridX - radius; x <= gridX + radius; x++){
+            if (!mapGrid[gridX]){
+              continue;
+            }
+
             for (let y = gridY; y <= gridY + radius; y++){
               let safetyCheck = mapGrid[gridX];
+              let otherSafetyCheck = mapGrid[x];
 
-              if (!safetyCheck){
-                return;
+              if (!safetyCheck || !otherSafetyCheck){
+                continue;
               }
+
 
               let item = mapGrid[x][y];
 
@@ -3278,6 +3323,9 @@ function handleDeletes(gridX, gridY){
   else if (mapGrid[gridX][gridY] === "mushroom") {
     deleteArea(gridX, gridY - 1, 1, 2);
   }
+  else if (mapGrid[gridX][gridY] === "golem") {
+    deleteArea(gridX, gridY, 1, 2);
+  }
   else {
     entities = entities.filter(entity => entity !== mapGrid[gridX][gridY]);
     mapGrid[gridX][gridY] = NOBLOCK;
@@ -3451,12 +3499,13 @@ function placeMultipleObjects(type){
     "block": placeBlock,
     "hurtBlock": placeHurtBlock,
     "mushroom": placeMushroom,
-    "bat": placeBat
+    "bat": placeBat,
+    "golem": placeGolem,
   };
 
   let targetFunction = placementFunctions[type];
 
-  if (type === "mushroom" && targetFunction) {
+  if ((type === "mushroom" || type === "golem") && targetFunction) {
     for (let x = 0; x < rows; x++) {
       for (let y = 0; y < cols; y++){
         if (y % 2 !== 0) {
@@ -3589,6 +3638,33 @@ function placeMushroom(givenX, givenY){
   entities.push(mushroom);
 }
 
+function placeGolem(givenX, givenY){
+  let worldX = mouseX/mapScale - cameraX;
+  let worldY = mouseY/mapScale - cameraY;
+
+  //Position on grid
+  let gridX = givenX || Math.floor(worldX/cellSize);
+  let gridY = givenY || Math.floor(worldY/cellSize);
+
+  //if no position on grid return
+  if (!mapGrid[gridX] || checkDuplicate(gridX, gridY, selected)) {
+    return;
+  }
+
+  let drawX = gridX * cellSize + cellSize/2;
+  let drawY = gridY * cellSize + cellSize/2;
+
+  let golem = new Golem(drawX, drawY);
+  
+  handleDeletes(gridX, gridY - 1);
+
+  //If not already a mushroom there place mushroom
+  blocksPlaced.push([gridX, gridY, selected]);
+  mapGrid[gridX][gridY] = golem;
+  mapGrid[gridX][gridY + 1] = "golem";
+  entities.push(golem);
+}
+
 //Places bat onto map for dev mode
 function placeBat(givenX, givenY){
   let worldX = mouseX/mapScale - cameraX;
@@ -3649,6 +3725,10 @@ function placeObject() {
 
     else if (selected[selected.length - 1] === "bat") {
       placeMultipleObjects("bat");
+    }
+
+    else if (selected[selected.length - 1] === "golem") {
+      placeMultipleObjects("golem");
     }
 
     else if (selected[selected.length - 1] === "gate") {
@@ -3750,6 +3830,16 @@ function undo(){
     deleteDupes(x, y);
   }
 
+  if (type[type.length - 1] === "golem") {
+    mapGrid[x][y] = NOBLOCK;
+    mapGrid[x][y + 1] = NOBLOCK;
+
+    lastUndo = millis();
+    blocksUndone.push(blocksPlaced.pop());
+    blocksPlaced = blocksPlaced.filter(block => block !== lastBlock);
+    deleteDupes(x, y);
+  }
+
   else if (type[type.length - 1] === "player") {
     lastUndo = millis();
     mapGrid[x][y] = NOBLOCK;
@@ -3800,6 +3890,10 @@ function redo() {
   }
 
   else if (type[type.length - 1] === "bat") {
+    placeBat(x, y);
+  }
+
+  else if (type[type.length - 1] === "golem") {
     placeBat(x, y);
   }
 
@@ -3893,7 +3987,13 @@ function initializeTables() {
     redHeart, blueHeart, greenHeart, yellowHeart, emptyHeart,
 
     //Bat
-    batIdle, batDeath, batAttack, batHit, batButtonImg
+    batIdle, batDeath, batAttack, batHit, batButtonImg,
+
+    //Golem
+    golemAtkA, golemAtkC, golemBtnImg, golemDeathA, golemDeathB, golemHitA, golemHitB, golemIdleA, golemIdleB, golemRun, golemReset, golemStun,
+
+    //Pebble
+    pebbleDeath, pebbleIdle, pebbleRun
   };
   
   //Initialzie blocks for dev mode and stage maker
@@ -3910,6 +4010,8 @@ function initializeTables() {
   spike = [24, 24, false, "grey", "spikeUp", 24, 24, true, false, false, "hurtBlock"];
   mushroomBtn = [100, 100, null, null, "mushroomButtonImg", null, null, null, null, null, "mushroom"];
   batBtn = [60, 60, null, null, "batButtonImg", null, null, null, null, null, "bat"];
+  golemBtn = [60, 60, null, null, "golemBtnImg", null, null, null, null, null, "golem"];
+
   deadGrassPLeft = [24, 9, true, "grey", "deadGrassPlatformL", 24, 9, true, false, false, "platform"];
   deadGrassPRight = [24, 9, true, "grey", "deadGrassPlatformR", 24, 9, true, false, false, "platform"];
   deadGrassPMid = [24, 9, true, "grey", "deadGrassPlatformM", 24, 9, true, false, false, "platform"];
@@ -3934,6 +4036,7 @@ function initializeTables() {
     spike,
     mushroomBtn,
     batBtn,
+    golemBtn,
     deadGrassPLeft,
     deadGrassPMid,
     deadGrassPRight,
@@ -3945,7 +4048,7 @@ function initializeTables() {
   ];
 
   //Stages
-  createdStages = {stage1};
+  createdStages = {stage1, Stage2};
 }
 
 function setUpGUI() {
@@ -4064,7 +4167,7 @@ function loadStage(stage){
   for (let x = 0; x < newMap.length; x++){
     for (let y = 0; y < newMap[x].length; y++){
       if (!stage[x] || stage[x][y] === undefined){
-        return;
+        continue
       }
 
       let item = stage[x][y];
@@ -4139,7 +4242,7 @@ function loadStage(stage){
         newMap[x][y] = new Gate(x * cellSize + cellSize/2, y * cellSize + cellSize/2,  item.from, item.to, item.sizeX, item.sizeY, item.toX, item.toY);
       }
 
-      //If the item type is a mushroom make a new mushroom and push it to the entities tab for easier loops
+      //If the item type is a mob push it to the entities tab for easier loops
       if (item.type === "mushroom") {
         let shroom = new Mushroom(x * cellSize + cellSize/2, (y + 1) * cellSize + cellSize/2,  item.startPos, item.endPos, item.directionFacing);
         newMap[x][y] = shroom;
@@ -4150,6 +4253,12 @@ function loadStage(stage){
         let bat = new Bat(x * cellSize + cellSize/2, y * cellSize + cellSize/2);
         newMap[x][y] = bat;
         entities.push(bat);
+      }
+
+      if (item.type === "golem") {
+        let golem = new Golem(x * cellSize + cellSize/2, (y - 1) * cellSize + cellSize/2);
+        newMap[x][y] = golem;
+        entities.push(golem);
       }
     }
   }
@@ -4416,16 +4525,27 @@ function buildStageItem(parent){
 //Loads the users stage
 function loadUserStage(stageName, mode){  
   //If stage doesn't exist return
-  if (!userStages[stageName]){
+  let madeStage;
+  if (userStages[stageName]){
+    madeStage = userStages[stageName]
+  }
+  else if (createdStages[stageName]){
+    madeStage = createdStages[stageName]
+    localforage.setItem("platformer_lastStage", stageName)
+  }
+
+  let continuedStage = stageName;
+
+  if (!madeStage){
     return;
-  };
+  }
 
   currentEditingStage = mode === "editor" ? stageName : null;
   mainMenuContainer.hide();
   stageManager.hide();
   gameMode = mode;
 
-  let deadStage = structuredClone(userStages[stageName]);
+  let deadStage = structuredClone(madeStage);
   
   if (gameMode === "editor") {
     mapGrid = loadStage(deadStage);
@@ -4439,11 +4559,13 @@ function loadUserStage(stageName, mode){
 
 function loadCampaign(){
   //Here is where I would get the last saved stage but for now just stage1
-  let stageName = "stage1";
-
+  let stageName = continuedStage;
+  console.log(stageName);
   if (!createdStages[stageName]){
     return;
   };
+
+  localforage.setItem("platformer_lastStage", stageName);
 
   mainMenuContainer.hide();
   stageManager.hide();
