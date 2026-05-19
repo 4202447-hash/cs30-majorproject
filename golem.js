@@ -3,7 +3,7 @@ class Golem extends Humanoid{
     super(x, y);
 
     //Configs
-    this.type = "golem"
+    this.type = "golem";
     this.mode = "A";
     this.startingX = this.x;
     this.startingY = this.y;
@@ -22,7 +22,7 @@ class Golem extends Humanoid{
     this.lookHeight = 64;
     this.hasTarget = false;
     this.moveDir = 0;
-    this.actionState = "idleA"
+    this.actionState = "idleA";
     this.timeSinceIdle = 0;
     this.heightDiff = 64;
     this.lastModeSwitch = 0;
@@ -47,7 +47,7 @@ class Golem extends Humanoid{
     this.idleB = "golemIdleB";
     this.run = "golemRun";
     this.reset = "golemReset";
-    this.stun = "golemStun"
+    this.stun = "golemStun";
 
     //Sprites
     this.sprites = {
@@ -186,7 +186,7 @@ class Golem extends Humanoid{
         startFrame: 0,
         oneTime: true,
       },
-    }
+    };
   }
 
   //This will handle the golems gravity and movement
@@ -225,7 +225,7 @@ class Golem extends Humanoid{
     this.x = this.x + this.xVel;
 
     //Apply friction, 1/4 in air
-    if ((this.moveDir === 0 || this.moveSpeed === 0)) {
+    if (this.moveDir === 0 || this.moveSpeed === 0) {
       let currentFriction = this.grounded
         ? FRICTIONALFORCE
         : FRICTIONALFORCE / 4;
@@ -251,8 +251,8 @@ class Golem extends Humanoid{
     this.frameHeight = this.sprites[this.actionState].imageHeight;
 
     if (anim.breakPoint){
-      column = this.currentFrame % anim.breakPoint
-      let currentRow = Math.floor(this.currentFrame / anim.breakPoint)
+      column = this.currentFrame % anim.breakPoint;
+      let currentRow = Math.floor(this.currentFrame / anim.breakPoint);
       this.yCrop = 64 * currentRow;
     }
     else{
@@ -296,33 +296,34 @@ class Golem extends Humanoid{
         //After attack A keep us held still to give player an opening
         else if (this.actionState === "attackA") {
           this.moveSpeed = 0;
-          this.actionState = "idleA"
-          this.mode = "A"
+          this.actionState = "idleA";
+          this.mode = "A";
           this.madePebble = false;
         }
 
         //Set mode to B after golem resets
         else if (this.actionState === "reset") {
-          this.mode = "B"
-          this.actionState = "idleB"
+          this.mode = "B";
+          this.actionState = "idleB";
         }
 
         else if (this.actionState === "attackC" && this.attackCCnt !== 3) {
           this.xVel = 0;
           this.screenShake += 3;
-          this.directionFacing = this.directionFacing === "left" ? "right" : "left"
+          this.directionFacing = this.directionFacing === "left" ? "right" : "left";
           this.attackC();
         }
 
         else if (this.actionState === "attackC" && this.attackCCnt === 3) {
           this.xVel = 0;
-          this.actionState = "idleA"
+          this.actionState = "idleA";
         }
 
         //Whenever we get hit, check if we are still alive
         else if (this.actionState === "hit" && this.health <= 0) {
           this.actionState = "death" + this.mode;
           this.active = false;
+          this.windingUp = false;
         }
         
         //Return to idle if no conditions met
@@ -395,7 +396,7 @@ class Golem extends Humanoid{
 
   //What to do when hit
   onHit() {
-    if (this.actionState === "attackC"){
+    if (this.windingUp || this.actionState.startsWith("attack") || this.actionState === "reset"){
       return;
     }
 
@@ -407,18 +408,17 @@ class Golem extends Humanoid{
     this.xVel = 0;
 
     if (this.health > 0){
-      this.actionState = "hit" + this.mode
-    } else{
-      this.actionState = "death" + this.mode
+      this.actionState = "hit" + this.mode;
+    }
+    else{
+      this.actionState = "death" + this.mode;
       this.active = false;
+      this.windingUp = false;
     }
 
-    if (this.health % 5 === 0){
+    if (this.health % 4 === 0){
+      this.actionState = "reset"
       this.attackA();
-    }
-
-    if (this.health === 8){
-      this.attackC();
     }
 
     let distance = abs(this.x - player.x);
@@ -458,7 +458,7 @@ class Golem extends Humanoid{
       if (player.actionState === "blocking" && this.directionFacing !== player.directionFacing && this.actionState === "attackC") {
         this.actionState = "stun";
         this.attackCCnt = 0;
-        console.log("stunned")
+        console.log("stunned");
         freezeFrames = 10;
         screenShake = 4;
         this.moveSpeed = 0;
@@ -514,15 +514,15 @@ class Golem extends Humanoid{
 
     //This is what makes the golem face and follow the player
     if (abs(distSquared) < this.lookDistance * this.lookDistance && heightDiff < this.lookHeight){
+      this.hasTarget = true;
 
       //Reset mode if we are in true idle with player not around
       if (this.mode === "A" && this.actionState === "idleA" && !this.hasTarget){
-          this.actionState = "reset"
-          this.moveSpeed = 0;
-          return
-        }
-
-      this.hasTarget = true;
+        this.actionState = "reset";
+        console.log("Yeahh")
+        this.moveSpeed = 0;
+        return;
+      }
 
       if (player.x > this.x) {
         if (this.directionFacing !== "right"){
@@ -549,11 +549,13 @@ class Golem extends Humanoid{
     //Attack C runs when following attack A when the player tries to approach to hit it
     if (this.mode === "A" && abs(distSquared) < this.atkCDistance * this.atkCDistance && heightDiff < this.lookHeight && millis() - this.lastAttackC > this.atkCCD){
       this.attackC();
+      return;
     }
 
     //Mode reset to B so we can run attack A again
     if (millis() - this.lastAttackA > this.atkACD && this.mode === "A"){
-      this.actionState = "reset"
+      this.actionState = "reset";
+      return;
     }
 
     //Attack A
@@ -565,26 +567,25 @@ class Golem extends Humanoid{
 
   attackA(distSquared){
     if (this.mode === "A"){
-        return;
-      }
+      return;
+    }
       
-      if (player.x > this.x) {
-        this.directionFacing = "right";
-        this.moveDir = -1;
-      }
-      else if (player.x < this.x ) {
-        this.directionFacing = "left";
-        this.moveDir = 1;
-      }
+    if (player.x > this.x) {
+      this.directionFacing = "right";
+      this.moveDir = -1;
+    }
+    else if (player.x < this.x ) {
+      this.directionFacing = "left";
+      this.moveDir = 1;
+    }
 
       
-      this.yVel = 0;
-      this.windingUp = true;
+    this.yVel = 0;
+    this.windingUp = true;
 
-      //If we are within the range of attack c we are too close for a ranged attack and thus we will release a burst instead
-      if (abs(distSquared) < this.atkCDistance * this.atkCDistance){
-        console.log("Burst")
-        setTimeout(() => {
+    //If we are within the range of attack c we are too close for a ranged attack and thus we will release a burst instead
+    if (abs(distSquared) < this.atkCDistance * this.atkCDistance){
+      setTimeout(() => {
         {
           if (!this.active || this.actionState.startsWith("death")){
             return;
@@ -599,17 +600,17 @@ class Golem extends Humanoid{
             screenShake = 4;
             let pebble1 = new Pebble(this.x - 8, this.bottom, -1, "right", 6, 0);
             let pebble2 = new Pebble(this.x + 8, this.bottom, 1, "left", 6, 0);
-            let pebble3 = new Pebble(this.x - 8, this.bottom, -1, "right", 0, -7);
-            let pebble4 = new Pebble(this.x + 8, this.bottom, 1, "left", 0, -7);
-            let pebble5 = new Pebble(this.x - 8, this.bottom, -1, "right", 0, -4);
-            let pebble6 = new Pebble(this.x + 8, this.bottom, 1, "left", 0, -4);
-
+            let pebble3 = new Pebble(this.x - 8, this.top, -1, "right", 3, -7);
+            let pebble4 = new Pebble(this.x + 8, this.top, 1, "left", -3, -7);
+            let pebble5 = new Pebble(this.x - 8, (this.bottom + this.top) /2, -1, "right", 8, -4);
+            let pebble6 = new Pebble(this.x + 8, (this.bottom + this.top) / 2, 1, "left", -8, -4);
             entities.push(pebble1, pebble2, pebble3, pebble4, pebble5, pebble6);
           }
         }  
       }, 250);
-      } else{
-        setTimeout(() => {
+    }
+    else{
+      setTimeout(() => {
         {
           if (this.actionState.startsWith("hit") || !this.active || this.actionState.startsWith("death")){
             return;
@@ -629,32 +630,33 @@ class Golem extends Humanoid{
           }
         }  
       }, 250);
-      }
+    }
   }
 
   attackC(){
     if (this.attackCCnt === 3){
       this.attackCCnt = 0;
-      return
+      return;
     }
 
     this.windingUp = true;
     this.xVel = 0;
     this.attackCCnt += 1;
     this.lastAttackC = millis();
+    console.log("attack C")
 
-      setTimeout(() => {
-        {
-          if (!this.active || this.actionState.startsWith("death")){
-            return;
-          }
-          this.windingUp = false;
-          this.actionState = "attackC";
+    setTimeout(() => {
+      {
+        if (!this.active || this.actionState.startsWith("death")){
+          return;
+        }
+        this.windingUp = false;
+        this.actionState = "attackC";
 
-          let dir = this.directionFacing === "left" ? -1 : 1;
-          this.xVel = 5 * this.attackCCnt * dir * 2;
-        }  
-      }, 250);
+        let dir = this.directionFacing === "left" ? -1 : 1;
+        this.xVel = 5 * this.attackCCnt * dir * 2;
+      }  
+    }, 250);
   }
 }
 
@@ -664,7 +666,7 @@ class Pebble extends Humanoid{
     super(x, y);
 
     //Configs
-    this.type = "pebble"
+    this.type = "pebble";
     this.startingX = this.x;
     this.startingY = this.y;
     this.active = true;
@@ -673,17 +675,17 @@ class Pebble extends Humanoid{
     this.sizeX = 12 * this.imageScale;
     this.moveSpeed = 5;
     this.lookDistance = 200;
-    this.attackCD = 100000
+    this.attackCD = 100000;
     this.lookHeight = 64;
     this.attackDistance = 200;
     this.hasTarget = false;
-    this.directionFacing = lookDir
+    this.directionFacing = lookDir;
     this.moveDir = moveDir;
-    this.actionState = "idle"
+    this.actionState = "idle";
     this.heightDiff = 64;
     this.attacked = false;
     this.creationTime = millis();
-    this.xVel = xVel * this.moveDir
+    this.xVel = xVel * this.moveDir;
     this.yVel = yVel;
 
     //Animations
@@ -736,7 +738,7 @@ class Pebble extends Humanoid{
         oneTime: true,
         breakPoint: 4
       },
-    }
+    };
   }
 
   //This will handle the golems gravity and movement
@@ -766,7 +768,7 @@ class Pebble extends Humanoid{
     this.x = this.x + this.xVel;
 
     //Apply friction, 1/4 in air
-    if ((this.moveDir === 0 || this.moveSpeed === 0)) {
+    if (this.moveDir === 0 || this.moveSpeed === 0) {
       let currentFriction = this.grounded
         ? FRICTIONALFORCE
         : FRICTIONALFORCE / 4;
@@ -792,8 +794,8 @@ class Pebble extends Humanoid{
     this.frameHeight = this.sprites[this.actionState].imageHeight;
 
     if (anim.breakPoint){
-      column = this.currentFrame % anim.breakPoint
-      let currentRow = Math.floor(this.currentFrame / anim.breakPoint)
+      column = this.currentFrame % anim.breakPoint;
+      let currentRow = Math.floor(this.currentFrame / anim.breakPoint);
       this.yCrop = 64 * currentRow;
     }
     else{
@@ -829,7 +831,7 @@ class Pebble extends Humanoid{
         if (this.actionState === "death") {
           this.actionState = "death" + this.mode;
           this.active = false;
-          entities = entities.filter(item => item !== this)
+          entities = entities.filter(item => item !== this);
         }
       }
     }
@@ -861,14 +863,14 @@ class Pebble extends Humanoid{
 
   handleState() {
     if (this.actionState === "death"){
-      return
+      return;
     }
     //Skip if currently in an action state
     if (abs(this.xVel) > 0.1) {
       this.actionState = "running" ;
     }
     else if (this.actionState === "running") {
-      this.actionState = "idle"
+      this.actionState = "idle";
     }
   }
 
@@ -892,7 +894,7 @@ class Pebble extends Humanoid{
   //What to do when hit
   onHit() {
     this.health = 0;
-    this.actionState = "death"
+    this.actionState = "death";
   }
 
   checkCollision(item) {
@@ -994,9 +996,9 @@ class Pebble extends Humanoid{
             return;
           }
           this.lastAttack = millis();
-          this.moveSpeed = 5
+          this.moveSpeed = 5;
           if (this.grounded){
-          this.yVel =- 4;
+            this.yVel =- 4;
           }
 
           this.windingUp = false;

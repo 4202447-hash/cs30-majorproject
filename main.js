@@ -583,6 +583,7 @@ class Humanoid {
     this.lastHitTaken = 0;
     this.hitCD = 1000;
     this.flashLength = 150;
+    this.didJump = false;
 
     //roll
     this.rollCooldown = rollCD || 1000;
@@ -640,6 +641,7 @@ class Humanoid {
       this.grounded = false;
       this.lastActionState = this.actionState;
       this.actionState = "jumpLaunch";
+      this.didJump = true;
     }
   }
 
@@ -970,7 +972,7 @@ class Player extends Humanoid {
     }
 
     //This is for jumping
-    if (this.yVel < 0 && !keyIsDown(32)) {
+    if (this.yVel < 0 && !keyIsDown(32) && this.didJump) {
       this.yVel *= 0.6; 
     }
 
@@ -1264,6 +1266,7 @@ class Player extends Humanoid {
             this.directionFacing === "left" ? -moveForward : moveForward;
 
           this.grounded = true;
+          this.didJump = false;
           this.yVel = 0;
           this.lastLedgeClimb = millis();
         }
@@ -1348,6 +1351,7 @@ class Player extends Humanoid {
       this.actionState = "downSlam";
       this.currentHit = 1;
       this.yVel = Math.max(5, this.yVel + 5);
+      this.didJump = false;
     }
 
     //Normal punch
@@ -1522,6 +1526,7 @@ class Player extends Humanoid {
 
   didHit(){
     this.goalRedBar = Math.min(100, this.redBar + 5);
+    
   }
 
 
@@ -2256,6 +2261,7 @@ class Platform {
             return ;
           }
           item.grounded = true;
+          item.didJump = false;
           item.groundY = this.y;
           item.lastGround = millis();
 
@@ -2504,6 +2510,7 @@ class BreakableObject {
             return ;
           }
           item.grounded = true;
+          item.didJump = false;
           item.groundY = this.y;
           item.lastGround = millis();
 

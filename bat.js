@@ -102,8 +102,8 @@ class Bat extends Humanoid{
     let floorCheckX = this.x + lookAhead;
    
     if (checkIfPath(floorCheckX, this.y)) {
-        this.directionFacing = this.directionFacing === "right" ? "left" : "right";
-        this.moveDir *= -1;
+      this.directionFacing = this.directionFacing === "right" ? "left" : "right";
+      this.moveDir *= -1;
     }
 
 
