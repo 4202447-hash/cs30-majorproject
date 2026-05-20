@@ -377,22 +377,22 @@ function setup() {
     }
 
     localforage.getItem("platformer_lastStage").then((savedData) => {
-    if (savedData){
-      continuedStage = savedData
-    }
-    else {
-      console.log("COund find it")
-      continuedStage = "stage1";
-    }
+      if (savedData){
+        continuedStage = savedData;
+      }
+      else {
+        console.log("COund find it");
+        continuedStage = "stage1";
+      }
 
-    player = new Player(10000, 100000);
-    entities.push(player);
+      player = new Player(10000, 100000);
+      entities.push(player);
 
-    setUpGUI();
-    createMenuUI();
-    stageManagerUI();
-    })
-  })
+      setUpGUI();
+      createMenuUI();
+      stageManagerUI();
+    });
+  });
 }
 
 let animationCounter = 0;
@@ -500,7 +500,7 @@ function keyPressed() {
   }
 
   if (key === "m" && gameMode === "playing"){
-    mapOpen = !mapOpen
+    mapOpen = !mapOpen;
   }
 
   if (key === " ") {
@@ -901,7 +901,7 @@ class Player extends Humanoid {
         yOffset: 26,
         charHeight: 40,
         startFrame: 0,
-        shouldLoop: true
+        oneTime: true,
       },
 
       blocking: {
@@ -1173,7 +1173,6 @@ class Player extends Humanoid {
           if (this.actionState === "downSlam") {
             this.yVel = -8;
             this.actionState = "jumpLaunch";
-            item.onHit();
           }
         }
       }
@@ -1767,7 +1766,7 @@ class Mushroom extends Humanoid {
 
     //Check for walls as well and turn around if there is a wall
     if (checkIfPath(this.x + 24 * Math.sign(this.moveDir), this.y)){
-      this.moveDir *= -1
+      this.moveDir *= -1;
       this.directionFacing = this.directionFacing === "left" ? "right" : "left";
     }
 
@@ -1789,7 +1788,7 @@ class Mushroom extends Humanoid {
     this.x = this.x + this.xVel;
 
     //Apply friction, 1/4 in air
-    if ((this.moveDir === 0 || this.moveSpeed === 0)) {
+    if (this.moveDir === 0 || this.moveSpeed === 0) {
       let currentFriction = this.grounded
         ? FRICTIONALFORCE
         : FRICTIONALFORCE / 4;
@@ -1921,7 +1920,7 @@ class Mushroom extends Humanoid {
     let floorCheckX = this.x + lookAhead;
     let floorCheckY = this.bottom + 9;
 
-    rect(floorCheckX, floorCheckY, 5, 5)
+    rect(floorCheckX, floorCheckY, 5, 5);
   }
 
   handleState() {
@@ -2809,7 +2808,7 @@ function updateAll() {
     for (let x = gridX - radius; x <= gridX + radius; x++){
       for (let y = gridY - radius; y <= gridY + radius; y++){
         let safetyCheck = mapGrid[gridX];
-        let otherSafetyCheck = mapGrid[x]
+        let otherSafetyCheck = mapGrid[x];
 
         if (!safetyCheck || !otherSafetyCheck){
           continue;
@@ -4174,7 +4173,7 @@ function loadStage(stage){
   for (let x = 0; x < newMap.length; x++){
     for (let y = 0; y < newMap[x].length; y++){
       if (!stage[x] || stage[x][y] === undefined){
-        continue
+        continue;
       }
 
       let item = stage[x][y];
@@ -4534,11 +4533,11 @@ function loadUserStage(stageName, mode){
   //If stage doesn't exist return
   let madeStage;
   if (userStages[stageName]){
-    madeStage = userStages[stageName]
+    madeStage = userStages[stageName];
   }
   else if (createdStages[stageName]){
-    madeStage = createdStages[stageName]
-    localforage.setItem("platformer_lastStage", stageName)
+    madeStage = createdStages[stageName];
+    localforage.setItem("platformer_lastStage", stageName);
   }
 
   let continuedStage = stageName;
