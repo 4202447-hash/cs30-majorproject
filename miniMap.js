@@ -8,7 +8,6 @@ function drawMiniMap(){
   let mmHeight = height;
   let mmTrueX = 0;
   let mmTrueY = 0;
-//Oush note
   let scaleX = mmWidth / totalCols;
   let scaleY = mmHeight / totalRows;
   let trueScale = Math.min(scaleX, scaleY);  //Use a uniform scale cuz before it was making it a rectangle and squishing blocks

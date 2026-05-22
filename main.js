@@ -72,6 +72,7 @@ let fadeRate = 10;
 
 let stage1;
 let Stage2;
+let Stage3;
 
 //Animations and sprites
 //Player
@@ -273,6 +274,7 @@ function preload() {
   //Stages
   stage1 = loadJSON("stages/stage1.json");
   Stage2 = loadJSON("stages/stage2.json");
+  Stage3 = loadJSON("stages/stage3.json");
 
   //Cave background
   for (let i = 1; i < 7; i++){
@@ -445,7 +447,7 @@ function draw() {
     }
 
     if (gameMode !== "editor") {
-      //drawLighting();
+      drawLighting();
     }
 
     player.showGUI();
@@ -4054,7 +4056,7 @@ function initializeTables() {
   ];
 
   //Stages
-  createdStages = {stage1, Stage2};
+  createdStages = {stage1, Stage2, Stage3};
 }
 
 function setUpGUI() {
