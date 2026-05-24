@@ -244,7 +244,6 @@ class Golem extends Humanoid{
   }
 
   display() {
-    console.log(this.actionState);
     //Identify current anim and define variables
     let anim = this.sprites[this.actionState];
     let column = this.currentFrame;

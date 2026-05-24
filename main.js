@@ -47,6 +47,7 @@ let pYVel = 0;
 let pmaxX = 5;
 let pmaxY = 5;
 let pMoveDir = 1;
+let swordObtained = true;
 
 //For stages and stage creator
 let internalStages = {};
@@ -96,6 +97,12 @@ let playerUpwardPunch;
 let playerLedgeSheet;
 let playerDownSlam;
 let playerBlock;
+let playerSword1;
+let playerSword2;
+let playerSword3;
+let playerSwordIdle;
+let playerSwordRun;
+let playerSwowrdSprint;
 
 //Mushroom
 let mushroomButtonImg;
@@ -203,6 +210,12 @@ function preload() {
   playerDownSlam = loadImage("Character/down.png");
   playerBlock = loadImage("Character/block.png");
   playerButtonSheet = loadImage("Character/buttonImg.png");
+  playerSword1 = loadImage("Character/sword_attack_1.png");
+  playerSword2 = loadImage("Character/sword_attack_2.png");
+  playerSword3 = loadImage("Character/sword_attack_3.png");
+  playerSwordRun = loadImage("Character/running_sword.png");
+  playerSwowrdSprint = loadImage("Character/sprint_sword.png");
+  playerSwordIdle = loadImage("Character/idle_sword.png");
 
   //Mushroom animations
   mushroomAttack = loadImage("Mushroom/Mushroom-Attack.png");
@@ -540,6 +553,15 @@ function keyPressed() {
     player.pressedS = 0;
   }
 
+  if (key === "e"){
+    if (player.swordEnabled){
+      player.disableSword();
+    }
+    else{
+      player.enableSword();
+    }
+  }
+
   //For looking down
   if (key === "s") {
     player.phaseCurrentPlatform();
@@ -646,7 +668,7 @@ class Humanoid {
       "punchUp",
     ];
 
-    this.attackStates = ["punch1", "punch2", "punch3"];
+    this.attackStates = ["punch1", "punch2", "punch3", "sword1", "sword2", "sword3"];
 
     //Timers
     this.lastLedgeClimb = 0;
@@ -719,6 +741,7 @@ class Player extends Humanoid {
     this.lastGround = 0;
     this.coyoteJump = 150;
     this.lastGreenBar = 0;
+    this.swordEnabled = false;
 
     //Animations
     this.frameWidth = 128;
@@ -746,6 +769,15 @@ class Player extends Humanoid {
     this.ledgeClimb = "playerLedgeSheet";
     this.downSlam = "playerDownSlam";
     this.blockAnim = "playerBlock";
+    this.sword1 = "playerSword1";
+    this.sword2 = "playerSword2";
+    this.sword3 = "playerSword3";
+    this.swordIdle = "playerSwordIdle";
+    this.sword1 = "playerSword1"
+    this.sword2 = "playerSword2"
+    this.sword3 = "playerSword3"
+    this.swordRun = "playerSwordRun"
+    this.swordSprint = "playerSwowrdSprint"
 
     //Hearts and huds
     this.redHeartActive = true;
@@ -783,6 +815,18 @@ class Player extends Humanoid {
         spriteSpeed: 6,
         yOffset: 18,
         charHeight: 35,
+        startFrame: 0,
+        shouldLoop: true,
+      },
+
+      idleSword: {
+        sheet: this.swordIdle,
+        totalFrames: 5,
+        imageWidth: 128,
+        imageHeight: 36,
+        spriteSpeed: 6,
+        yOffset: 28,
+        charHeight: 36,
         startFrame: 0,
         shouldLoop: true,
       },
@@ -845,6 +889,18 @@ class Player extends Humanoid {
         shouldLoop: true,
       },
 
+      runningSword: {
+        sheet: this.swordRun,
+        totalFrames: 6,
+        imageWidth: 128,
+        imageHeight: 35,
+        spriteSpeed: 6,
+        yOffset: 26,
+        charHeight: 36,
+        startFrame: 0,
+        shouldLoop: true,
+      },
+
       punch1: {
         sheet: this.punch1,
         totalFrames: 4,
@@ -881,8 +937,56 @@ class Player extends Humanoid {
         oneTime: true,
       },
 
+      sword1: {
+        sheet: this.sword1,
+        totalFrames: 6,
+        imageWidth: 128,
+        imageHeight: 40,
+        spriteSpeed: 4,
+        yOffset: 24,
+        charHeight: 40,
+        startFrame: 0,
+        oneTime: true,
+      },
+
+      sword2: {
+        sheet: this.sword2,
+        totalFrames: 5,
+        imageWidth: 128,
+        imageHeight: 40,
+        spriteSpeed: 4,
+        yOffset: 24,
+        charHeight: 40,
+        startFrame: 0,
+        oneTime: true,
+      },
+
+      sword3: {
+        sheet: this.sword3,
+        totalFrames: 7,
+        imageWidth: 128,
+        imageHeight: 40,
+        spriteSpeed: 4,
+        yOffset: 24,
+        charHeight: 40,
+        startFrame: 0,
+        oneTime: true,
+      },
+
       sprinting: {
         sheet: this.sprintingSheet,
+        totalFrames: 6,
+        imageWidth: 128,
+        imageHeight: 35,
+        spriteSpeed: 6,
+        yOffset: 26,
+        charHeight: 36,
+        startFrame: 0,
+        shouldLoop: true,
+      },
+
+      sprintingSword: {
+        sheet: this.swordSprint,
         totalFrames: 6,
         imageWidth: 128,
         imageHeight: 35,
@@ -958,7 +1062,7 @@ class Player extends Humanoid {
     //Movement
     if (
       this.actionState !== "rolling" &&
-      !this.actionState.startsWith("punch") &&
+      !this.actionState.startsWith("punch") && !this.actionState.startsWith("sword") &&
       abs(this.xVel) <= 6) {
       if (this.moveDir !== 0) {
         this.speed = this.actionState === "sprinting" ? 5 : this.moveSpeed;
@@ -1060,6 +1164,7 @@ class Player extends Humanoid {
     if (
       this.actionState === "rolling" ||
       this.actionState.startsWith("punch") ||
+      this.actionState.startsWith("sword") ||
       this.actionState === "ledgeClimb" ||
       this.actionState === "blocking"
     ) {
@@ -1111,6 +1216,10 @@ class Player extends Humanoid {
         this.lastActionState = this.actionState;
         this.actionState = "running";
       }
+    }
+
+    if (this.swordEnabled && (this.actionState === "idle" || this.actionState === "running" || this.actionState == "sprinting")){
+      this.actionState = this.actionState + "Sword"
     }
   }
 
@@ -1295,8 +1404,9 @@ class Player extends Humanoid {
           this.yVel = 0;
           this.lastLedgeClimb = millis();
         }
+        
         this.lastActionState = this.actionState;
-        this.actionState = "idle";
+        this.actionState = this.swordEnabled ? "idleSword" : "idle";
       }
     }
 
@@ -1554,6 +1664,17 @@ class Player extends Humanoid {
     
   }
 
+  enableSword(){
+    this.swordEnabled = true;
+    this.hitCD = 1500;
+    this.currentWeapon = "sword"
+  }
+
+  disableSword(){
+    this.swordEnabled = false;
+    this.hitCD = 1000;
+    this.currentWeapon = "punch"
+  }
 
   heal(){
     if (this.goalRedBar === 100){
@@ -4124,7 +4245,8 @@ function initializeTables() {
   // Player Animations
     playerIdleSheet, playerrollingSheet, playerJumpSheet, playerRunningSheet,
     playerPunch1, playerPunch2, playerPunch3, playerSprintSheet,
-    playerUpwardPunch, playerLedgeSheet, playerDownSlam, playerBlock, playerButtonSheet,
+    playerUpwardPunch, playerLedgeSheet, playerDownSlam, playerBlock, playerButtonSheet, playerSword1, playerSword2,
+    playerSword3, playerSwordIdle, playerSwordRun, playerSwowrdSprint,
 
     // Mushroom animations
     mushroomAttack, mushroomDie, mushroomIdle, mushroomRun, 
@@ -4806,4 +4928,8 @@ function changeMP(){
   pMoveDir = Number(prompt("direction of platform (should be a 1 or -1)"));
   pmaxX = Number(prompt("max # of blocks it can travel horizontally(should be a #"));
   pmaxY = Number(prompt("max # of blocks it can travel vertically (should be a #"));
+}
+
+function EnableSword(){
+
 }
