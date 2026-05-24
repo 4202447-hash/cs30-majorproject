@@ -30,6 +30,7 @@ let groundLevel;
 let player;
 let platforms = [];
 let entities = [];
+let movingPlatforms = [];
 let brObjects = [];
 let debrisCount = 0;
 let maxDebris = 100;
@@ -40,6 +41,12 @@ let mapScale = 2.0;
 let lightBuffer;
 let continuedStage;
 let mapOpen = false;
+let secondOptionE = false;
+let pXvel = 1;
+let pYVel = 0;
+let pmaxX = 5;
+let pmaxY = 5;
+let pMoveDir = 1;
 
 //For stages and stage creator
 let internalStages = {};
@@ -155,6 +162,7 @@ let deadGrassStageM;
 let deadGrassStageR;
 let spikeUp;
 let gateImg;
+let fallingSpike;
 
 //Cave background textures
 let cave2;
@@ -378,12 +386,15 @@ function setup() {
       userStages["Stage 2"] = structuredClone(Stage2);
     }
 
+    if (!userStages["Stage 3"]) {
+      userStages["Stage 3"] = structuredClone(Stage3);
+    }
+
     localforage.getItem("platformer_lastStage").then((savedData) => {
       if (savedData){
         continuedStage = savedData;
       }
       else {
-        console.log("COund find it");
         continuedStage = "stage1";
       }
 
@@ -484,6 +495,18 @@ function keyPressed() {
 
   if (key === "e" && gameMode === "editor") {
     selected = eraser;
+  }
+
+  if (key === "2" && gameMode === "editor") {
+    secondOptionE = true;
+  }
+
+  if (key === "1" && gameMode === "editor") {
+    secondOptionE = false;
+  }
+
+  if (key === "0" && gameMode === "editor") {
+    changeMP();
   }
 
   if (key === "r") {
@@ -730,10 +753,10 @@ class Player extends Humanoid {
     this.greenHeartActive = true;
     this.yellowHeartActive = true;
 
-    this.redBar = 50;
-    this.blueBar = 10;
-    this.greenBar = 80;
-    this.yellowBar = 65;
+    this.redBar = 100;
+    this.blueBar = 100;
+    this.greenBar = 100;
+    this.yellowBar = 100;
 
     this.goalRedBar = this.redBar;
     this.goalBlueBar = this.blueBar;
@@ -997,6 +1020,7 @@ class Player extends Humanoid {
 
     //Reset ground state
     this.grounded = false;
+    this.currentPlatform = [];
   }
 
   //Visual effect for when he gets hit
@@ -1922,7 +1946,6 @@ class Mushroom extends Humanoid {
     let floorCheckX = this.x + lookAhead;
     let floorCheckY = this.bottom + 9;
 
-    rect(floorCheckX, floorCheckY, 5, 5);
   }
 
   handleState() {
@@ -2306,6 +2329,56 @@ class Platform {
   }
 }
 
+//Platform class which moves
+class MovingPlatform extends Platform{
+  constructor(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation, xVel, yVel, maxX, maxY, moveDir){
+    super(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation)
+    this.type = "movingPlatform"
+    this.xVel = xVel || 1;
+    this.yVel = yVel || 0;
+    this.maxX = maxX 
+    this.maxY = maxY 
+    this.startX = this.x;
+    this.startY = this.y;
+    this.moveDir = moveDir || 1;
+    this.lastX = this.x;
+    this.lastY = this.y;
+    
+  }
+
+  update(){
+    this.lastX = this.x;
+    this.lastY = this.y;
+
+    this.x += this.xVel * this.moveDir;
+    this.y += this.yVel * this.moveDir;
+
+    if(abs(this.startX - this.x) >= this.maxX){
+      console.log("swith")
+      this.moveDir *= -1;
+    }
+  }
+
+  checkCollision(item){
+    this.top = this.y - this.sizeY / 2;
+    this.bottom = this.y + this.sizeY / 2;
+    this.left = this.x - this.sizeX / 2;
+    this.right = this.x + this.sizeX / 2;
+
+    if (super.checkCollision(item) && item.grounded){
+      
+      //Drag the player along
+      let dX = this.x - this.lastX;
+      item.x += dX * 2 //honestly not sure why the *2 is there just found it worked after testing a lot. Maybe because the player is generally touching two platforms?
+      
+      item.yVel = this.yVel;
+      item.y += item.yVel
+    }
+  }
+}
+
+
+//Platform like blocks which damage the player
 class HurtBlock extends Platform{
   constructor(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation) {
     super(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation);
@@ -2330,7 +2403,49 @@ class HurtBlock extends Platform{
       }
     }
   }
+}
 
+
+//Hurtblock like blocks which fall as the player nears
+class FallingSpike extends HurtBlock{
+  constructor(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation){
+    super(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation);
+
+    this.gridPosX = this.x / cellSize;
+    this.gridPosY = this.y / cellSize;
+    this.type = "fallingSpike";
+    this.erWidth = this.sizeX * 8;
+    this.erHeight = 400;
+    this.anchored = true;
+    this.checkY = this.y + this.erHeight/2;
+    this.yVel = 0;
+  }
+
+  checkCollision(item){
+    super.checkCollision(item);
+    this.fall(item);
+
+    this.top = this.y - this.sizeY / 2;
+    this.bottom = this.y + this.sizeY / 2;
+    this.left = this.x - this.sizeX / 2;
+    this.right = this.x + this.sizeX / 2;
+  }
+
+  fall(item){
+    if (!this.anchored){
+      this.yVel += GRAVITATIONALFORCE;
+      this.y += this.yVel;
+      return;
+    }
+  
+    //Proper collisions
+    let overlapX = (item.sizeX + this.erWidth) / 2 - Math.abs(item.x - this.x);
+    let overlapY = (item.sizeY + this.erHeight) / 2 - Math.abs(item.y - this.checkY);
+
+    if (overlapX > 0 && overlapY > 0) {
+      this.anchored = false;
+    }
+  }
 }
 
 class BackgroundImage{
@@ -2784,8 +2899,8 @@ function updateAll() {
   //We still want to see the player and have them animated 
   if (entities.includes(player)){
     let lastHitCntr = millis() - player.lastHitTaken;
-    if (lastHitCntr < player.hitCD && lastHitCntr > player.flashLength){
-      if (frameCount % 5 === 0){
+    if (lastHitCntr < player.hitCD * 2 && lastHitCntr > player.flashLength){
+      if (frameCount % 10 === 0){
         player.display();
       }
     }
@@ -2818,7 +2933,7 @@ function updateAll() {
 
         let item = mapGrid[x][y];
 
-        if (item && item.checkCollision && !entities.includes(item)){
+        if (item && item.checkCollision && !entities.includes(item) && !(item instanceof FallingSpike) && !(item instanceof MovingPlatform)){
           item.checkCollision(player);
         }
       }
@@ -2860,7 +2975,7 @@ function updateAll() {
 
               let item = mapGrid[x][y];
 
-              if (item && item.checkCollision && !entities.includes(item)){
+              if (item && item.checkCollision && !entities.includes(item) && !(item instanceof MovingPlatform) && !(item instanceof FallingSpike)){
                 item.checkCollision(entity);
               }
             }
@@ -2908,7 +3023,7 @@ function updateAll() {
       if (mapGrid[x] && mapGrid[x][y] !== undefined){
         item = mapGrid[x][y];
       }
-      if (!item){
+      if (!item || item instanceof MovingPlatform || item instanceof FallingSpike){
         continue;
       }
 
@@ -2924,6 +3039,25 @@ function updateAll() {
       if (typeof item !== "string" && typeof item !== "number" && item && item !== player && !entities.includes(item)) {
         item.display();
       }
+
+      //Also run collisions for falling spike as they must operate outside of the radius of the plaer
+      if (item instanceof FallingSpike){
+        item.checkCollision(player);
+      }
+    }
+  }
+
+  //We need to always run checks for moving platforms as their location in the grid is not accurate to their real location
+  for (let p of movingPlatforms){
+    if (gameMode === "playing"){
+    p.update();
+    for (let entity of entities){
+      p.checkCollision(entity)
+      p.display();
+    }
+    }
+    else{
+      p.display();
     }
   }
 }
@@ -3336,6 +3470,7 @@ function handleDeletes(gridX, gridY){
   }
   else {
     entities = entities.filter(entity => entity !== mapGrid[gridX][gridY]);
+    movingPlatforms = movingPlatforms.filter(entity => entity !== mapGrid[gridX][gridY]);
     mapGrid[gridX][gridY] = NOBLOCK;
   }
 
@@ -3376,19 +3511,26 @@ function placeBlock (givenX, givenY, givenSelected, givenRotation) {
   //We have to arrays containing two types of block data. the "platforms array" uses the old system which was made outside of the grid system
   //The mapgrid array is using the new system 
   let platform;
-  if (usedSelected[usedSelected.length - 1] === "block" || usedSelected[usedSelected.length - 1] === "platform" ) {
-    platform = new Platform(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[2], usedSelected[3], usedSelected[4], usedSelected[5], usedSelected[6], usedSelected[7], usedSelected[8], usedSelected[9], givenRotation || rotation);
+  if (!secondOptionE){
+    if (usedSelected[usedSelected.length - 1] === "block" || usedSelected[usedSelected.length - 1] === "platform" ) {
+      platform = new Platform(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[2], usedSelected[3], usedSelected[4], usedSelected[5], usedSelected[6], usedSelected[7], usedSelected[8], usedSelected[9], givenRotation || rotation);
+    }
+
+    else if (usedSelected[usedSelected.length - 1] === "breakableObject"){
+      platform = new BreakableObject(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[4], usedSelected[9], givenRotation || rotation);
+    }
+  }
+  else{
+    console.log9
+    platform = new MovingPlatform(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[2], usedSelected[3], usedSelected[4], usedSelected[5], usedSelected[6], usedSelected[7], usedSelected[8], usedSelected[9], givenRotation || rotation, pXvel, pYVel, pmaxX, pmaxY, pMoveDir);
+    movingPlatforms.push(platform)
   }
 
-  else if (usedSelected[usedSelected.length - 1] === "breakableObject"){
-    platform = new BreakableObject(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[4], usedSelected[9], givenRotation || rotation);
-  }
-
-  //Push platform to list of blocks placed if it isn"t literally the same block already there
-  if (platform) {
-    blocksPlaced.push([gridX, gridY, usedSelected, rotation]);
-    mapGrid[gridX][gridY] = platform;
-  }
+      //Push platform to list of blocks placed if it isn"t literally the same block already there
+    if (platform) {
+      blocksPlaced.push([gridX, gridY, usedSelected, rotation]);
+      mapGrid[gridX][gridY] = platform;
+    }
 }
 
 //Function which displays a red rect for eraser mode
@@ -3534,14 +3676,19 @@ function placeMultipleObjects(type){
 }
 
 //Function to place hurt block in dev mode
-function placeHurtBlock(givenX, givenY, givenSelected) {
+function placeHurtBlock(givenX, givenY, givenSelected, isSecondary) {
   //Get the position of the actual world relative to the camera
   let worldX = mouseX/mapScale - cameraX;
   let worldY = mouseY/mapScale - cameraY;
-
   
   let gridX = givenX || Math.floor(worldX/cellSize);
   let gridY = givenY || Math.floor(worldY/cellSize);
+
+  let secondE;
+
+  if (isSecondary === undefined){
+    secondE = secondOptionE;
+  }
 
   //if no position on grid return
   if (!mapGrid[gridX]) {
@@ -3559,11 +3706,20 @@ function placeHurtBlock(givenX, givenY, givenSelected) {
   let drawX = gridX * cellSize + cellSize/2;
   let drawY = gridY * cellSize + cellSize/2;
   
-  let hurtBlock = new HurtBlock(drawX, drawY, selected[0], selected[1], selected[2], selected[3], selected[4], selected[5], selected[6], selected[7], selected[8], selected[9], rotation);
-  
-  if (hurtBlock.img !== mapGrid[gridX][gridY].img) {
-    blocksPlaced.push([gridX, gridY, usedSelected]);
-    mapGrid[gridX][gridY] = hurtBlock;
+  if (!secondE){
+    let hurtBlock = new HurtBlock(drawX, drawY, selected[0], selected[1], selected[2], selected[3], selected[4], selected[5], selected[6], selected[7], selected[8], selected[9], rotation);
+    if (hurtBlock.img !== mapGrid[gridX][gridY].img) {
+      blocksPlaced.push([gridX, gridY, usedSelected]);
+      mapGrid[gridX][gridY] = hurtBlock;
+    }
+  }
+  else{
+    selected = fallingSpike;
+    let hurtBlock = new FallingSpike(drawX, drawY, selected[0], selected[1], selected[2], selected[3], selected[4], selected[5], selected[6], selected[7], selected[8], selected[9], rotation);
+    if (hurtBlock.img !== mapGrid[gridX][gridY].img) {
+      blocksPlaced.push([gridX, gridY, usedSelected]);
+      mapGrid[gridX][gridY] = hurtBlock;
+    }
   }
 }
 
@@ -4016,6 +4172,7 @@ function initializeTables() {
   dirtMid = [24, 24, false, "brown", "dirtStageM", 24, 24, true, true, false, "block"];
   playerObject = [100, 100, null, null, "playerButtonSheet", null, null, null, null, null, "player"];
   spike = [24, 24, false, "grey", "spikeUp", 24, 24, true, false, false, "hurtBlock"];
+  fallingSpike = [24, 24, false, "grey", "spikeUp", 24, 24, true, false, false, "fallingSpike"];
   mushroomBtn = [100, 100, null, null, "mushroomButtonImg", null, null, null, null, null, "mushroom"];
   batBtn = [60, 60, null, null, "batButtonImg", null, null, null, null, null, "bat"];
   golemBtn = [60, 60, null, null, "golemBtnImg", null, null, null, null, null, "golem"];
@@ -4202,8 +4359,51 @@ function loadStage(stage){
         );
       }
 
+      if (item.type === "movingPlatform") {
+        newMap[x][y] = new MovingPlatform(
+          x * cellSize + cellSize/2, 
+          y * cellSize + cellSize/2, 
+          item.sizeX, 
+          item.sizeY, 
+          item.oneWay, 
+          item.color, 
+          item.img, 
+          item.tilesizeX, 
+          item.tilesizeY, 
+          item.canClimb, 
+          item.bottomBlock, 
+          item.cantCollide, 
+          item.rotation,
+          item.xVel,
+          item.yVel,
+          item.maxX,
+          item.maxY,
+          item.moveDir
+        );
+
+        movingPlatforms.push(newMap[x][y])
+      }
+
       if (item.type === "hurtBlock"){
         newMap[x][y] = new HurtBlock(
+          x * cellSize + cellSize/2, 
+          y * cellSize + cellSize/2, 
+          item.sizeX, 
+          item.sizeY, 
+          item.oneWay, 
+          item.color, 
+          item.img, 
+          item.tilesizeX, 
+          item.tilesizeY, 
+          item.canClimb, 
+          item.bottomBlock, 
+          item.cantCollide, 
+          item.rotation
+        );
+      }
+
+      if (item.type === "fallingSpike"){
+        newMap[x][y] = new FallingSpike(
           x * cellSize + cellSize/2, 
           y * cellSize + cellSize/2, 
           item.sizeX, 
@@ -4568,7 +4768,6 @@ function loadUserStage(stageName, mode){
 function loadCampaign(){
   //Here is where I would get the last saved stage but for now just stage1
   let stageName = continuedStage;
-  console.log(stageName);
   if (!createdStages[stageName]){
     return;
   };
@@ -4600,3 +4799,11 @@ function moveDown(amount){
   return newGrid;
 }
 
+//This is a function which when ran allows the player to change presets regarding the moving platform class
+function changeMP(){
+  pXvel = Number(prompt("Speed horizontally of platform (should be a number)"));
+  pXvel = Number(prompt("Speed vertically of platform (should be a number)"));
+  pMoveDir = Number(prompt("direction of platform (should be a 1 or -1)"));
+  pmaxX = Number(prompt("max # of blocks it can travel horizontally(should be a #"));
+  pmaxY = Number(prompt("max # of blocks it can travel vertically (should be a #"));
+}

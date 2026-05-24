@@ -12,7 +12,7 @@ class Golem extends Humanoid{
     this.sizeY = 30 * this.imageScale;
     this.sizeX = 16 * this.imageScale;
     this.moveSpeed = 2.5;
-    this.health = 15;
+    this.health = 10;
     this.atkACD = 5000;
     this.atkCCD = 4000;
     this.atkADistance = 330;
@@ -244,6 +244,7 @@ class Golem extends Humanoid{
   }
 
   display() {
+    console.log(this.actionState);
     //Identify current anim and define variables
     let anim = this.sprites[this.actionState];
     let column = this.currentFrame;
@@ -330,14 +331,14 @@ class Golem extends Humanoid{
         }
 
         else if (this.actionState === "attackC" && this.attackCCnt !== 3) {
-          this.xVel = 0;
+          this.xVel *= 0.5;
           this.screenShake += 3;
           this.directionFacing = this.directionFacing === "left" ? "right" : "left";
           this.attackC();
         }
 
         else if (this.actionState === "attackC" && this.attackCCnt === 3) {
-          this.xVel = 0;
+          this.xVel *= 0.5;
           this.actionState = "idleA";
         }
 
@@ -405,15 +406,6 @@ class Golem extends Humanoid{
 
   update() {
 
-    //Couple safety checks for state resets
-    if (!this.active){
-      if (this.actionState !== "death" + this.mode){
-        this.actionState = "death" + this.mode;
-      }
-      this.windingUp = false;
-      return;
-    }
-
     this.handleState();
     if (this.checkCollision(player)){
       this.applyHit();
@@ -442,9 +434,6 @@ class Golem extends Humanoid{
     this.moveSpeed = 0;
     this.health -= 1;
     this.xVel = 0;
-
-    console.log(this.health);
-
     if (this.health > 0){
       this.actionState = "hit" + this.mode;
     }

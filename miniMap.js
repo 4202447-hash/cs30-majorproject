@@ -6,8 +6,6 @@ function drawMiniMap(){
 
   let mmWidth = width;
   let mmHeight = height;
-  let mmTrueX = 0;
-  let mmTrueY = 0;
   let scaleX = mmWidth / totalCols;
   let scaleY = mmHeight / totalRows;
   let trueScale = Math.min(scaleX, scaleY);  //Use a uniform scale cuz before it was making it a rectangle and squishing blocks
@@ -16,10 +14,10 @@ function drawMiniMap(){
 
   //These resets all our edits to the scale such as mapScale or translate
   resetMatrix();
-  let furthestLeft = 0;
-  let furthestRight = 0;
-  let top = 0;
-  let bottom = 0;
+  let furthestLeft =Infinity;
+  let furthestRight = -Infinity;
+  let top = Infinity;
+  let bottom = -Infinity;
 
   textSize(30);
   text(continuedStage, width/2, height/2);
@@ -27,30 +25,13 @@ function drawMiniMap(){
   rectMode(CORNER);
 
   background(242, 227, 198);
-
-  //Loop through the current stage and make the map
   for (let x = 0; x < totalRows; x++){
     for (let y = 0; y< totalCols; y++){
       let item = mapGrid[x][y];
 
       if (!item){
-        continue;
+        continue
       }
-
-      if (item instanceof Platform){
-        fill(60, 45, 30);
-        stroke(60, 45, 30);
-      }
-
-      if (item instanceof Gate){
-        fill(50, 50, 255);
-        stroke(50, 50, 255);
-      }
-
-      let posX = mmTrueX + x * trueScale + width / 3; //Sort of a magic number. Idk why its just the offset that gets it to the centero f my screen
-      let posY = mmTrueY + y * trueScale + 100;
-      
-      rect(posX, posY, trueScale);
 
       furthestLeft = Math.min(x, furthestLeft);
       furthestRight = Math.max(x, furthestRight);
@@ -59,8 +40,41 @@ function drawMiniMap(){
     }
   }
 
+  //Loop through the current stage and make the map
+  for (let x = 0; x < totalRows; x++){
+    for (let y = 0; y< totalCols; y++){
+      let item = mapGrid[x][y];
+
+      if (!item){
+        continue
+      }
+
+      else if (item instanceof Platform || item instanceof HurtBlock || item instanceof FallingSpike){
+        fill(60, 45, 30);
+        stroke(60, 45, 30);
+      }
+
+      else if (item instanceof Gate){
+        fill(50, 50, 255);
+        stroke(50, 50, 255);
+      }
+      else{
+        continue
+      }
+
+
+      let posX = ((x - (furthestLeft + furthestRight) / 2) * trueScale) + width / 2 //Sort of a magic number. Idk why its just the offset that gets it to the centero f my screen
+      let posY = ((y - (bottom + top) / 2) * trueScale) + height / 2
+      
+      rect(posX, posY, trueScale);
+    }
+  }
+
   //Add the player and other entities with each having their own unique colors
   for (let entity of entities){
+    let x = entity.x / cellSize;
+    let y = entity.y / cellSize;
+
     if (entity instanceof Player){
       fill(255, 255, 0);
       stroke(255, 255, 0);
@@ -81,8 +95,8 @@ function drawMiniMap(){
       stroke(150);
     }
 
-    let trueX = mmTrueX + entity.x / cellSize * trueScale + width / 3;
-    let trueY = mmTrueY + entity.y / cellSize * trueScale + 100;
+    let trueX = ((x - (furthestLeft + furthestRight) / 2) * trueScale) + width / 2
+    let trueY = ((y - (bottom + top) / 2) * trueScale) + height / 2 - 2; //2 Less than the blocks to make it seem as enemies are on top of the blocks
 
     if (entity instanceof Player){
       drawingContext.shadowBlur = 20;
@@ -104,8 +118,8 @@ function drawMiniMap(){
 
   let sizeX = (furthestRight - furthestLeft) * trueScale;
   let sizeY = (bottom - top) * trueScale;
-  let xPos = (furthestLeft + furthestRight) / 2 * trueScale + width/3;
-  let yPos = (bottom + top) / 2 * trueScale + 100;
+  let xPos = width/2
+  let yPos = height/2
 
   rect(xPos, yPos, sizeX, sizeY);
 
@@ -121,5 +135,6 @@ function drawMiniMap(){
   textSize(55);
   text(continuedStage, xPos, height * 0.1);
 
+  stroke(0)
   pop();
 }
