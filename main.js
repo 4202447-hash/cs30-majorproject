@@ -584,7 +584,7 @@ function keyReleased() {
 
 //When mouse is pressed attack
 function mousePressed() {
-  if (gameMode === "editor" || freezeFrames > 0) {
+  if (gameMode === "editor" || freezeFrames > 0 || gameMode === "menu") {
     return;
   }
 
@@ -930,7 +930,7 @@ class Player extends Humanoid {
         totalFrames: 4,
         imageWidth: 128,
         imageHeight: 35,
-        spriteSpeed: 4,
+        spriteSpeed: 3,
         yOffset: 26,
         charHeight: 36,
         startFrame: 0,
@@ -942,7 +942,7 @@ class Player extends Humanoid {
         totalFrames: 6,
         imageWidth: 128,
         imageHeight: 40,
-        spriteSpeed: 4,
+        spriteSpeed: 3,
         yOffset: 24,
         charHeight: 40,
         startFrame: 0,
@@ -954,7 +954,7 @@ class Player extends Humanoid {
         totalFrames: 5,
         imageWidth: 128,
         imageHeight: 40,
-        spriteSpeed: 4,
+        spriteSpeed: 3,
         yOffset: 24,
         charHeight: 40,
         startFrame: 0,
@@ -1225,12 +1225,17 @@ class Player extends Humanoid {
 
   //Run every frame to update state/anims/inputs
   update() {
+    //Run other functions
+    this.handleState();
+    this.checkInputBuffs();
+
     //Reset animation frame
     if (this.actionState !== this.lastActionState) {
+      console.log("Ran")
       this.currentFrame = 0;
       this.lastActionState = this.actionState;
     }
-
+    
     //Check for movement inputs
     if (keyIsDown(65) && !keyIsDown(68)) {
       this.moveDir = -1;
@@ -1257,10 +1262,6 @@ class Player extends Humanoid {
       this.lastActionState = this.actionState;
       this.actionState = "idle";
     }
-
-    //Run other functions
-    this.checkInputBuffs();
-    this.handleState();
 
     //Reset phase bottom 
     if (millis() - this.lastPhase > this.lastPhaseCD){
@@ -1461,7 +1462,7 @@ class Player extends Humanoid {
     if (
       millis() - this.lastHit < this.hitCD ||
       this.actionState === "rolling" ||
-      this.actionState === "ledgeClimb"
+      this.actionState === "ledgeClimb" || this.actionState.startsWith("punch") || this.actionState.startsWith("sword")
     ) {
       return;
     }
@@ -1475,7 +1476,7 @@ class Player extends Humanoid {
 
     this.lastHit = millis();
 
-    if (keyIsDown(87)) {
+    if (keyIsDown(87) && this.currentWeapon === "punch") {
       this.actionState = this.currentWeapon + "Up";
       this.currentHit = 1;
       
@@ -1666,14 +1667,16 @@ class Player extends Humanoid {
 
   enableSword(){
     this.swordEnabled = true;
-    this.hitCD = 1500;
     this.currentWeapon = "sword"
+    this.rangeX = 70;
+    this.currentHit = 1;
   }
 
   disableSword(){
     this.swordEnabled = false;
-    this.hitCD = 1000;
     this.currentWeapon = "punch"
+    this.rangeX = 40;
+    this.currentHit = 1;
   }
 
   heal(){
@@ -1722,11 +1725,11 @@ class Player extends Humanoid {
       this.lastActionState = "none";
       this.lastCheckpointX = this.x;
       this.lastCheckpointY = this.y;
-      this.currentFrame = 0;
       this.totalImage = 0;
       this.xCrop = 0;
       this.lastFrameTime = 0;
       this.timeSinceLand = 0;
+      this.disableSword();
       freezeFrames = 0;
 
       setTimeout(() => {
@@ -4449,6 +4452,8 @@ function loadStage(stage){
   let newMap = createGrid(totalRows, totalCols);
   //Clear old stuff
   entities = [];
+  brObjects = [];
+  movingPlatforms = [];
 
   //Loop throug harray
   for (let x = 0; x < newMap.length; x++){
