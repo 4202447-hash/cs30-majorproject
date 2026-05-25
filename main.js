@@ -553,7 +553,7 @@ function keyPressed() {
     player.pressedS = 0;
   }
 
-  if (key === "e"){
+  if (key === "z"){
     if (player.swordEnabled){
       player.disableSword();
     }
@@ -588,6 +588,7 @@ function mousePressed() {
     return;
   }
 
+  
   player.hit();
   player.inputBuffers.punch = millis();
 }
@@ -773,11 +774,11 @@ class Player extends Humanoid {
     this.sword2 = "playerSword2";
     this.sword3 = "playerSword3";
     this.swordIdle = "playerSwordIdle";
-    this.sword1 = "playerSword1"
-    this.sword2 = "playerSword2"
-    this.sword3 = "playerSword3"
-    this.swordRun = "playerSwordRun"
-    this.swordSprint = "playerSwowrdSprint"
+    this.sword1 = "playerSword1";
+    this.sword2 = "playerSword2";
+    this.sword3 = "playerSword3";
+    this.swordRun = "playerSwordRun";
+    this.swordSprint = "playerSwowrdSprint";
 
     //Hearts and huds
     this.redHeartActive = true;
@@ -930,7 +931,7 @@ class Player extends Humanoid {
         totalFrames: 4,
         imageWidth: 128,
         imageHeight: 35,
-        spriteSpeed: 3,
+        spriteSpeed: 4,
         yOffset: 26,
         charHeight: 36,
         startFrame: 0,
@@ -942,7 +943,7 @@ class Player extends Humanoid {
         totalFrames: 6,
         imageWidth: 128,
         imageHeight: 40,
-        spriteSpeed: 3,
+        spriteSpeed: 4,
         yOffset: 24,
         charHeight: 40,
         startFrame: 0,
@@ -954,7 +955,7 @@ class Player extends Humanoid {
         totalFrames: 5,
         imageWidth: 128,
         imageHeight: 40,
-        spriteSpeed: 3,
+        spriteSpeed: 4,
         yOffset: 24,
         charHeight: 40,
         startFrame: 0,
@@ -1218,8 +1219,8 @@ class Player extends Humanoid {
       }
     }
 
-    if (this.swordEnabled && (this.actionState === "idle" || this.actionState === "running" || this.actionState == "sprinting")){
-      this.actionState = this.actionState + "Sword"
+    if (this.swordEnabled && (this.actionState === "idle" || this.actionState === "running" || this.actionState === "sprinting")){
+      this.actionState = this.actionState + "Sword";
     }
   }
 
@@ -1228,10 +1229,10 @@ class Player extends Humanoid {
     //Run other functions
     this.handleState();
     this.checkInputBuffs();
+    console.log(this.actionState);
 
     //Reset animation frame
     if (this.actionState !== this.lastActionState) {
-      console.log("Ran")
       this.currentFrame = 0;
       this.lastActionState = this.actionState;
     }
@@ -1269,9 +1270,28 @@ class Player extends Humanoid {
     }
 
     //If attacking run hitbox chcks
-    
+    let shouldCheck = true;
 
     if (this.actionState.startsWith(this.currentWeapon)){
+      //This is that return during the windup part of the sword animations
+      if (this.actionState === "sword1"){
+        if (this.currentFrame < 4){
+          shouldCheck = false;
+        }
+      }
+
+      else if (this.actionState === "sword2"){
+        if (this.currentFrame < 3){
+          shouldCheck = false;
+        }
+      }
+
+      else if (this.actionState === "sword3"){
+        if (this.currentFrame < 4){
+          shouldCheck = false;
+        }
+      }
+
       if (this.actionState.includes("Up")) {
         this.hitItems = getItemsInArea(this.x, this.y - 40, this.rangeX, this.rangeY, this);
       }
@@ -1289,26 +1309,29 @@ class Player extends Humanoid {
     let pushedBack = false;
 
     //Run on hit for things hit and shake screen
-    if (this.hitItems.length) {
-      for (let item of this.hitItems) {
-        if (!this.alrHit.includes(item) && item.active){
-          if (!item){
-            continue;
-          }
+    if (shouldCheck){
+      if (this.hitItems.length) {
+        for (let item of this.hitItems) {
+          if (!this.alrHit.includes(item) && item.active){
+            if (!item){
+              continue;
+            }
 
-          this.alrHit.push(item);
-          item.onHit();
-          this.didHit();
-          screenShake = 4;
-          if (this.actionState.startsWith(this.currentWeapon) && !pushedBack){
-            this.xVel += this.directionFacing === "right" ? -2 : 2;
-            pushedBack = true;
-          }
+            this.alrHit.push(item);
+            let damage = this.currentWeapon === "punch" ? 1 : 2;
+            item.onHit(damage);
+            this.didHit();
+            screenShake = 4;
+            if (this.actionState.startsWith(this.currentWeapon) && !pushedBack){
+              this.xVel += this.directionFacing === "right" ? -2 : 2;
+              pushedBack = true;
+            }
 
-          //Pogos the player up if they destroy an object/hit a entity below them
-          if (this.actionState === "downSlam") {
-            this.yVel = -8;
-            this.actionState = "jumpLaunch";
+            //Pogos the player up if they destroy an object/hit a entity below them
+            if (this.actionState === "downSlam") {
+              this.yVel = -8;
+              this.actionState = "jumpLaunch";
+            }
           }
         }
       }
@@ -1353,7 +1376,9 @@ class Player extends Humanoid {
     }
 
     if (millis() - this.inputBuffers.punch < this.bufferThreshold) {
-      this.hit();
+      if (!this.actionState.startsWith(this.currentWeapon)){
+        this.hit();
+      }
     }
   }
 
@@ -1498,7 +1523,6 @@ class Player extends Humanoid {
 
     //Reset things that are already hit
     this.alrHit = [];
-
   }
 
   //Function to block
@@ -1667,14 +1691,14 @@ class Player extends Humanoid {
 
   enableSword(){
     this.swordEnabled = true;
-    this.currentWeapon = "sword"
-    this.rangeX = 70;
+    this.currentWeapon = "sword";
+    this.rangeX = 80;
     this.currentHit = 1;
   }
 
   disableSword(){
     this.swordEnabled = false;
-    this.currentWeapon = "punch"
+    this.currentWeapon = "punch";
     this.rangeX = 40;
     this.currentHit = 1;
   }
@@ -2108,11 +2132,11 @@ class Mushroom extends Humanoid {
   }
 
   //What to do when hit
-  onHit() {
+  onHit(damage) {
     this.currentFrame = 0;
     this.actionState = "gotHit";
     this.moveSpeed = 0;
-    this.health -= 1;
+    this.health -= damage || 1;
     this.sizeX = this.normalSize;
     this.xVel = 0;
 
@@ -2382,7 +2406,7 @@ class Platform {
     if (overlapX > 0 && overlapY > 0) {
       //This is code which makes the pebble enmy explode upon contact with a block once theyve attacked once
       if (item instanceof Pebble && item.attacked){
-        item.onHit();
+        item.onHit(1);
       }
 
       if (overlapX < overlapY || overlapX < FOOTOFFSET) {
@@ -2430,7 +2454,7 @@ class Platform {
           }
 
 
-          if (!(this instanceof HurtBlock)) {
+          if (!(this instanceof HurtBlock) && !(this instanceof MovingPlatform)) {
             item.lastCheckpointX = item.x;
             item.lastCheckpointY = item.y;
           }
@@ -2456,12 +2480,14 @@ class Platform {
 //Platform class which moves
 class MovingPlatform extends Platform{
   constructor(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation, xVel, yVel, maxX, maxY, moveDir){
-    super(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation)
-    this.type = "movingPlatform"
+    super(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation);
+    this.maxXBlocks = maxX;
+    this.maxYBlocks = maxY;
+    this.type = "movingPlatform";
     this.xVel = xVel || 1;
     this.yVel = yVel || 0;
-    this.maxX = maxX 
-    this.maxY = maxY 
+    this.maxX = this.maxXBlocks * cellSize; 
+    this.maxY = this.maxXBlocks * cellSize; 
     this.startX = this.x;
     this.startY = this.y;
     this.moveDir = moveDir || 1;
@@ -2478,7 +2504,7 @@ class MovingPlatform extends Platform{
     this.y += this.yVel * this.moveDir;
 
     if(abs(this.startX - this.x) >= this.maxX){
-      console.log("swith")
+      console.log("swith");
       this.moveDir *= -1;
     }
   }
@@ -2493,10 +2519,10 @@ class MovingPlatform extends Platform{
       
       //Drag the player along
       let dX = this.x - this.lastX;
-      item.x += dX * 2 //honestly not sure why the *2 is there just found it worked after testing a lot. Maybe because the player is generally touching two platforms?
+      item.x += dX * 2; //honestly not sure why the *2 is there just found it worked after testing a lot. Maybe because the player is generally touching two platforms?
       
       item.yVel = this.yVel;
-      item.y += item.yVel
+      item.y += item.yVel;
     }
   }
 }
@@ -2522,7 +2548,7 @@ class HurtBlock extends Platform{
       else {
         item.health = 0;
         if (item.active){
-          item.onHit();
+          item.onHit(1);
         } 
       }
     }
@@ -2676,12 +2702,12 @@ class BreakableObject {
   }
 
   //What happens when this object is hit
-  onHit() {
+  onHit(damage) {
     if (!this.active) {
       return;
     }
 
-    this.health -= 1;
+    this.health -= damage || 1;
 
     if (this.health <= 0) {
 
@@ -3147,7 +3173,7 @@ function updateAll() {
       if (mapGrid[x] && mapGrid[x][y] !== undefined){
         item = mapGrid[x][y];
       }
-      if (!item || item instanceof MovingPlatform || item instanceof FallingSpike){
+      if (!item || item instanceof MovingPlatform){
         continue;
       }
 
@@ -3174,11 +3200,11 @@ function updateAll() {
   //We need to always run checks for moving platforms as their location in the grid is not accurate to their real location
   for (let p of movingPlatforms){
     if (gameMode === "playing"){
-    p.update();
-    for (let entity of entities){
-      p.checkCollision(entity)
-      p.display();
-    }
+      p.update();
+      for (let entity of entities){
+        p.checkCollision(entity);
+        p.display();
+      }
     }
     else{
       p.display();
@@ -3645,16 +3671,16 @@ function placeBlock (givenX, givenY, givenSelected, givenRotation) {
     }
   }
   else{
-    console.log9
+    console.log9;
     platform = new MovingPlatform(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[2], usedSelected[3], usedSelected[4], usedSelected[5], usedSelected[6], usedSelected[7], usedSelected[8], usedSelected[9], givenRotation || rotation, pXvel, pYVel, pmaxX, pmaxY, pMoveDir);
-    movingPlatforms.push(platform)
+    movingPlatforms.push(platform);
   }
 
-      //Push platform to list of blocks placed if it isn"t literally the same block already there
-    if (platform) {
-      blocksPlaced.push([gridX, gridY, usedSelected, rotation]);
-      mapGrid[gridX][gridY] = platform;
-    }
+  //Push platform to list of blocks placed if it isn"t literally the same block already there
+  if (platform) {
+    blocksPlaced.push([gridX, gridY, usedSelected, rotation]);
+    mapGrid[gridX][gridY] = platform;
+  }
 }
 
 //Function which displays a red rect for eraser mode
@@ -4503,12 +4529,12 @@ function loadStage(stage){
           item.rotation,
           item.xVel,
           item.yVel,
-          item.maxX,
-          item.maxY,
+          item.maxXBlocks,
+          item.maxYBlocks,
           item.moveDir
         );
 
-        movingPlatforms.push(newMap[x][y])
+        movingPlatforms.push(newMap[x][y]);
       }
 
       if (item.type === "hurtBlock"){

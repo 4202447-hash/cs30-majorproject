@@ -14,9 +14,11 @@ class Bat extends Humanoid{
     this.health = 2;
     this.type = "bat";
     this.startingY = this.y;
+    this.startingX = this.x;
     this.maxDistance = 3;
     this.lastAttack;
     this.attackCD = 1500;
+    this.maxRange = 500;
     this.active = true;
     this.attackDistance = 100;
     this.lookDistance = 350;
@@ -101,7 +103,7 @@ class Bat extends Humanoid{
     let lookAhead = this.directionFacing === "right" ? 25 : -25;
     let floorCheckX = this.x + lookAhead;
    
-    if (checkIfPath(floorCheckX, this.y)) {
+    if (checkIfPath(floorCheckX, this.y) || abs(this.x - this.startingX) > this.maxRange) {
       this.directionFacing = this.directionFacing === "right" ? "left" : "right";
       this.moveDir *= -1;
     }
@@ -279,7 +281,7 @@ class Bat extends Humanoid{
   }
 
   //What to do when hit
-  onHit(blocked) {
+  onHit(damage, blocked) {
     if (millis() - this.lastHitTaken < 250){
       return;
     }
@@ -289,7 +291,7 @@ class Bat extends Humanoid{
       this.health = 0;
     }
     else{
-      this.health -= 1;
+      this.health -= damage || 1;
     }
     this.lastHitTaken = millis();
     this.actionState = "hit";
@@ -335,7 +337,7 @@ class Bat extends Humanoid{
         this.xVel = this.xVel * -1;
         freezeFrames = 10;
         screenShake = 4;
-        this.onHit(true);
+        this.onHit(1, true);
         this.moveSpeed = 0;
         player.didBlock();
         return;

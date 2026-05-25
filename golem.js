@@ -422,7 +422,7 @@ class Golem extends Humanoid{
   }
 
   //What to do when hit
-  onHit() {
+  onHit(damage) {
     if (this.windingUp || this.actionState === "reset" || !this.active){
       return;
     }
@@ -431,7 +431,7 @@ class Golem extends Humanoid{
 
     this.currentFrame = 0;
     this.moveSpeed = 0;
-    this.health -= 1;
+    this.health -= damage || 1;
     this.xVel = 0;
     if (this.health > 0){
       this.actionState = "hit" + this.mode;
