@@ -81,6 +81,7 @@ let fadeRate = 10;
 let stage1;
 let Stage2;
 let Stage3;
+let stage4;
 
 //Animations and sprites
 //Player
@@ -170,6 +171,7 @@ let deadGrassStageR;
 let spikeUp;
 let gateImg;
 let fallingSpike;
+let swordInRock;
 
 //Cave background textures
 let cave2;
@@ -181,13 +183,13 @@ let cave7;
 
 let caves = [cave2, cave3, cave4, cave5, cave6, cave7];
 let caveSpeeds = [1, 0.8, 0.6, 0.4, 0.3, 0.3, 0.1];
+
 //GUI
 let redHeart;
 let blueHeart;
 let greenHeart;
 let yellowHeart;
 let emptyHeart;
-
 
 let hearts;
 
@@ -275,6 +277,7 @@ function preload() {
   stoneStageRR = loadImage("PropsTextures/stoneStageRightR.png");
   stoneStageMR = loadImage("PropsTextures/stoneStageMiddleR.png");
   gateImg = loadImage("PropsTextures/portal.png");
+  swordInRock = loadImage("PropsTextures/SwordInRock.png");
 
   //Breakable objects
   crate = loadImage("BreakableObjects/Crate.png");
@@ -296,6 +299,7 @@ function preload() {
   stage1 = loadJSON("stages/stage1.json");
   Stage2 = loadJSON("stages/stage2.json");
   Stage3 = loadJSON("stages/stage3.json");
+  stage4 = loadJSON("stages/stage4.json");
 
   //Cave background
   for (let i = 1; i < 7; i++){
@@ -401,6 +405,10 @@ function setup() {
 
     if (!userStages["Stage 3"]) {
       userStages["Stage 3"] = structuredClone(Stage3);
+    }
+
+    if (!userStages["Stage 4"]) {
+      userStages["Stage 4"] = structuredClone(stage4);
     }
 
     localforage.getItem("platformer_lastStage").then((savedData) => {
@@ -1229,7 +1237,6 @@ class Player extends Humanoid {
     //Run other functions
     this.handleState();
     this.checkInputBuffs();
-    console.log(this.actionState);
 
     //Reset animation frame
     if (this.actionState !== this.lastActionState) {
@@ -1784,6 +1791,7 @@ class Mushroom extends Humanoid {
     this.lookHeight = 64;
     this.startingX = this.x;
     this.lastSwitch = 0;
+    this.switchTime = 500;
 
     //Variables specific to entity for enemy AI
     this.startPos = startPos;
@@ -1929,18 +1937,24 @@ class Mushroom extends Humanoid {
     let floorCheckY = this.bottom + 9;
 
     //Check if there is a valid path in front of you
-    if (!checkIfPath(floorCheckX, floorCheckY) && this.grounded) {
+    if (!checkIfPath(floorCheckX, floorCheckY) && this.grounded && millis() - this.lastSwitch > this.switchTime) {
       let oppositeX = this.x - lookAhead;
       //if there is a valid path in the opposite side turn around
       if (checkIfPath(oppositeX, floorCheckY) || abs(this.startingX - this.x > 100)) {
         this.directionFacing = this.directionFacing === "left" ? "right" : "left";
         this.moveDir *= -1;
+        this.lastSwitch = millis();
       }
+    }
+
+    if (!checkIfPath(floorCheckX, floorCheckY) && millis() - this.lastSwitch < this.switchTime){
+      this.moveSpeed = 0;
     }
 
     //Check for walls as well and turn around if there is a wall
     if (checkIfPath(this.x + 24 * Math.sign(this.moveDir), this.y)){
       this.moveDir *= -1;
+      this.lastSwitch = millis();
       this.directionFacing = this.directionFacing === "left" ? "right" : "left";
     }
 
@@ -2089,11 +2103,6 @@ class Mushroom extends Humanoid {
 
     //Reset
     pop();
-
-    let lookAhead = this.directionFacing === "right" ? -25 : 25;
-    let floorCheckX = this.x + lookAhead;
-    let floorCheckY = this.bottom + 9;
-
   }
 
   handleState() {
@@ -2264,7 +2273,11 @@ class Mushroom extends Humanoid {
       }
     }
 
-    if (this.actionState === "idle" ){
+    let lookAhead = this.directionFacing === "right" ? -25 : 25;
+    let floorCheckX = this.x + lookAhead;
+    let floorCheckY = this.bottom + 9;
+
+    if (this.actionState === "idle" && (checkIfPath(floorCheckX, floorCheckY))){
       this.moveSpeed = 2;
     }
   }
@@ -2501,10 +2514,9 @@ class MovingPlatform extends Platform{
     this.lastY = this.y;
 
     this.x += this.xVel * this.moveDir;
-    this.y += this.yVel * this.moveDir;
+    this.y += this.yVel * this.moveDir * -1;
 
     if(abs(this.startX - this.x) >= this.maxX){
-      console.log("swith");
       this.moveDir *= -1;
     }
   }
@@ -2521,8 +2533,8 @@ class MovingPlatform extends Platform{
       let dX = this.x - this.lastX;
       item.x += dX * 2; //honestly not sure why the *2 is there just found it worked after testing a lot. Maybe because the player is generally touching two platforms?
       
-      item.yVel = this.yVel;
-      item.y += item.yVel;
+      let dY = this.y - this.lastY;
+      item.y += dY;
     }
   }
 }
@@ -2598,20 +2610,23 @@ class FallingSpike extends HurtBlock{
   }
 }
 
-class BackgroundImage{
-  constructor(x, y, width, height, destructable) {
+class SwordInRock{
+  constructor(x, y){
+    this.image = "swordInRock";
     this.x = x;
     this.y = y;
-    this.sizeX = width;
-    this.sizeY = height;
-    this.destructable = destructable;
+    this.sizeX = 24;
+    this.sizeY = 32;
   }
 
-  display() {
-    image(this.x, this.y, this.sizeX, this.sizeY,);
+  display(){
+    image(imageTable[this.image], this.x, this.y, this.sizeX, this.sizeY);
+  }
+
+  interact(){
+
   }
 }
-
 //Takes small parts of a given image and shoots them outwards like debris
 class Debris{
   constructor(x, y, ogImg, width, height, broken) {
@@ -3191,7 +3206,7 @@ function updateAll() {
       }
 
       //Also run collisions for falling spike as they must operate outside of the radius of the plaer
-      if (item instanceof FallingSpike){
+      if (item instanceof FallingSpike && gameMode === "playing"){
         item.checkCollision(player);
       }
     }
@@ -3326,8 +3341,9 @@ function checkIfPath(x, y) {
   let gridX = Math.floor(x / cellSize);
   let gridY = Math.floor(y / cellSize);
 
-  for (let i = -1; i <= 1; i++){
-    for (let j = -1; j <= 1; j++){
+  //Though this check seems rather large, it is so it works functionally with moving platforms whos grid X do not match the actual X
+  for (let i = -15; i <= 15; i++){
+    for (let j = -15; j <= 15; j++){
       let trueX = gridX + i;
       let trueY = gridY + j;
 
@@ -3671,7 +3687,6 @@ function placeBlock (givenX, givenY, givenSelected, givenRotation) {
     }
   }
   else{
-    console.log9;
     platform = new MovingPlatform(drawX, drawY, usedSelected[0], usedSelected[1], usedSelected[2], usedSelected[3], usedSelected[4], usedSelected[5], usedSelected[6], usedSelected[7], usedSelected[8], usedSelected[9], givenRotation || rotation, pXvel, pYVel, pmaxX, pmaxY, pMoveDir);
     movingPlatforms.push(platform);
   }
@@ -3681,6 +3696,22 @@ function placeBlock (givenX, givenY, givenSelected, givenRotation) {
     blocksPlaced.push([gridX, gridY, usedSelected, rotation]);
     mapGrid[gridX][gridY] = platform;
   }
+}
+
+function placeSword(givenX, givenY){
+  let worldX = mouseX/mapScale - cameraX;
+  let worldY = mouseY/mapScale - cameraY;
+
+  //Position on grid
+  let gridX = givenX || Math.floor(worldX/cellSize);
+  let gridY = givenY || Math.floor(worldY/cellSize);
+
+  let drawY = gridY * cellSize + cellSize/2;
+  let drawX = gridX * cellSize + cellSize/2;
+
+  let sword = new SwordInRock(drawX, drawY);
+  blocksPlaced.push([gridX, gridY]);
+  mapGrid[gridX][gridY] = sword;
 }
 
 //Function which displays a red rect for eraser mode
@@ -3870,6 +3901,7 @@ function placeHurtBlock(givenX, givenY, givenSelected, isSecondary) {
       blocksPlaced.push([gridX, gridY, usedSelected]);
       mapGrid[gridX][gridY] = hurtBlock;
     }
+    selected = spike;
   }
 }
 
@@ -4308,7 +4340,10 @@ function initializeTables() {
     golemAtkA, golemAtkC, golemBtnImg, golemDeathA, golemDeathB, golemHitA, golemHitB, golemIdleA, golemIdleB, golemRun, golemReset, golemStun,
 
     //Pebble
-    pebbleDeath, pebbleIdle, pebbleRun
+    pebbleDeath, pebbleIdle, pebbleRun,
+
+    //Misc
+    swordInRock,
   };
   
   //Initialzie blocks for dev mode and stage maker
@@ -4336,6 +4371,7 @@ function initializeTables() {
   stoneP = [24, 9, true, "grey", "stonePlatformM", 24, 9, true, false, false, "platform"];
   crateBtn = [24, 24, false, "grey", "crate", 24, 24, true, false, 3, "breakableObject"];
   gateBtn = [24, 24, false, "grey", "gateImg", 24, 24, true, false, false, "gate"];
+  swordBtn = [24, 32, null, null, "swordInRock", 24, 24, null, null, null, "sword"];
 
   //Make table containing all object presets
   objectLibrary = [
@@ -4360,11 +4396,12 @@ function initializeTables() {
     stoneP,
     stonePR,
     crateBtn,
-    gateBtn
+    gateBtn,
+    swordBtn
   ];
 
   //Stages
-  createdStages = {stage1, Stage2, Stage3};
+  createdStages = {stage1, Stage2, Stage3, stage4};
 }
 
 function setUpGUI() {
@@ -4666,7 +4703,7 @@ function createMenuUI(){
   });
 }
 
-//Function to give main menu buttons consistent look
+//Function to give main menu buttons 
 function styleMenuButton(btn) {
   //Bg customizations
   btn.style("padding", "10px 20px");
@@ -4955,12 +4992,8 @@ function moveDown(amount){
 //This is a function which when ran allows the player to change presets regarding the moving platform class
 function changeMP(){
   pXvel = Number(prompt("Speed horizontally of platform (should be a number)"));
-  pXvel = Number(prompt("Speed vertically of platform (should be a number)"));
+  pYVel = Number(prompt("Speed vertically of platform (should be a number)"));
   pMoveDir = Number(prompt("direction of platform (should be a 1 or -1)"));
   pmaxX = Number(prompt("max # of blocks it can travel horizontally(should be a #"));
   pmaxY = Number(prompt("max # of blocks it can travel vertically (should be a #"));
-}
-
-function EnableSword(){
-
 }

@@ -26,6 +26,7 @@ class Bat extends Humanoid{
     this.lastHitTaken = 0;
     this.windingUp = false;
     this.moveDir = 1;
+    this.target = false;
     
     //Animations
     this.idle = "batIdle";
@@ -103,7 +104,7 @@ class Bat extends Humanoid{
     let lookAhead = this.directionFacing === "right" ? 25 : -25;
     let floorCheckX = this.x + lookAhead;
    
-    if (checkIfPath(floorCheckX, this.y) || abs(this.x - this.startingX) > this.maxRange) {
+    if (checkIfPath(floorCheckX, this.y) || (abs(this.x - this.startingX) > this.maxRange && !this.target)) {
       this.directionFacing = this.directionFacing === "right" ? "left" : "right";
       this.moveDir *= -1;
     }
@@ -244,6 +245,9 @@ class Bat extends Humanoid{
     //Reset
     pop();
     fill(255);
+
+    let lookAhead = this.directionFacing === "right" ? 25 : -25;
+    let floorCheckX = this.x + lookAhead;
   }
 
   handleState() {
@@ -391,6 +395,11 @@ class Bat extends Humanoid{
         this.directionFacing = "left";
         this.moveDir = -1;
       }
+
+      this.target = true;
+    }
+    else{
+      this.target = false;
     }
 
     //First check if the player is directly in front or behind, and if they are attack them
