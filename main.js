@@ -79,8 +79,8 @@ let fade = "none";
 let fadeRate = 10;
 
 let stage1;
-let Stage2;
-let Stage3;
+let stage2;
+let stage3;
 let stage4;
 
 //Animations and sprites
@@ -297,8 +297,8 @@ function preload() {
 
   //Stages
   stage1 = loadJSON("stages/stage1.json");
-  Stage2 = loadJSON("stages/stage2.json");
-  Stage3 = loadJSON("stages/stage3.json");
+  stage2 = loadJSON("stages/stage2.json");
+  stage3 = loadJSON("stages/stage3.json");
   stage4 = loadJSON("stages/stage4.json");
 
   //Cave background
@@ -400,11 +400,11 @@ function setup() {
     }
 
     if (!userStages["Stage 2"]) {
-      userStages["Stage 2"] = structuredClone(Stage2);
+      userStages["Stage 2"] = structuredClone(stage2);
     }
 
     if (!userStages["Stage 3"]) {
-      userStages["Stage 3"] = structuredClone(Stage3);
+      userStages["Stage 3"] = structuredClone(stage3);
     }
 
     if (!userStages["Stage 4"]) {
@@ -413,7 +413,7 @@ function setup() {
 
     localforage.getItem("platformer_lastStage").then((savedData) => {
       if (savedData){
-        continuedStage = savedData;
+        continuedStage = savedData.toLowerCase();
       }
       else {
         continuedStage = "stage1";
@@ -1074,7 +1074,7 @@ class Player extends Humanoid {
       !this.actionState.startsWith("punch") && !this.actionState.startsWith("sword") &&
       abs(this.xVel) <= 6) {
       if (this.moveDir !== 0) {
-        this.speed = this.actionState === "sprinting" ? 5 : this.moveSpeed;
+        this.speed = this.actionState.startsWith("sprinting") ? 5 : this.moveSpeed;
         let accel = this.speed;
         this.directionFacing = this.moveDir === 1 ? "right" : "left";
 
@@ -2367,7 +2367,7 @@ class Platform {
     let gridPositionY = Math.floor(this.y/cellSize);
     let isClearY = false;
 
-    if (mapGrid[gridPositionX] && mapGrid[gridPositionX][gridPositionY - 1] === 0){
+    if (mapGrid[gridPositionX] && mapGrid[gridPositionX][gridPositionY - 1] === 0 && !(this instanceof MovingPlatform)){
       isClearY = true;
     }
 
@@ -2615,16 +2615,25 @@ class SwordInRock{
     this.image = "swordInRock";
     this.x = x;
     this.y = y;
-    this.sizeX = 24;
-    this.sizeY = 32;
+    this.sizeX = 50;
+    this.sizeY = 50;
   }
 
   display(){
+    push();
+    translate(0, 10);
+
     image(imageTable[this.image], this.x, this.y, this.sizeX, this.sizeY);
+
+    if (abs(player.x - this.x) < 50 && gameMode === "playing"){
+      text("Q", this.x, this.y - 48);
+    }
+
+    pop();
   }
 
   interact(){
-
+    
   }
 }
 //Takes small parts of a given image and shoots them outwards like debris
@@ -2839,8 +2848,8 @@ class Gate {
   constructor(x, y, from, to, sizeX, sizeY, toX, toY) {
     this.x = x;
     this.y = y;
-    this.from = from;
-    this.to = to;
+    this.from = from.toLowerCase();
+    this.to = to.toLowerCase();
     this.toX = toX;
     this.toY = toY;
     this.sizeX = sizeX;
@@ -2942,6 +2951,10 @@ function checkDevModePost() {
     }
     else if (selected[selected.length - 1] === "player") {
       displayPlayer();
+    }
+
+    else if (selected[selected.length - 1] === "sword") {
+      displaySword();
     }
 
     else if (selected[selected.length - 1] === "gate") {
@@ -3441,6 +3454,41 @@ function dev() {
   exitButton.style("display", "flex");
 }
 
+function displaySword(givenX, givenY){
+  //The reason things like worldX is used is to make up for the difference between where the mouse is on the screen
+  // and where the mouse is in the world relative to where the camera is looking
+  let worldX = mouseX/mapScale - cameraX;
+  let worldY = mouseY/mapScale - cameraY;
+
+  let baseGridX = givenX || Math.floor(worldX/cellSize);
+  let baseGridY = givenY || Math.floor(worldY/cellSize);
+
+  for (let x = 0; x < rows; x++) {
+    for(let y = 0; y < cols; y++) {
+      let gridX = baseGridX + x;
+      let gridY = baseGridY + y;
+
+      if (mapGrid[gridX] === undefined || mapGrid[gridX][gridY] === undefined) {
+        continue;
+      }
+
+      tint(255, 127);
+
+      let displayImage = imageTable["swordInRock"];
+      let drawX = gridX * cellSize + cellSize/2;
+      let drawY = gridY * cellSize + cellSize/2 + 10;
+
+      push();
+      translate(drawX, drawY);
+      rotate(rotation);
+      image(displayImage, 0, 0, selected[0], selected[1]);
+      pop();
+
+      noTint();
+    }
+  }
+}
+
 //Function which displays selected block
 function displayBlock(givenX, givenY) {
   //The reason things like worldX is used is to make up for the difference between where the mouse is on the screen
@@ -3832,6 +3880,7 @@ function placeMultipleObjects(type){
     "mushroom": placeMushroom,
     "bat": placeBat,
     "golem": placeGolem,
+    "sword": placeSword,
   };
 
   let targetFunction = placementFunctions[type];
@@ -4061,6 +4110,10 @@ function placeObject() {
       placePlayer();
     }
 
+    else if (selected[selected.length - 1] === "sword") {
+      placeSword();
+    }
+
     else if (selected[selected.length - 1] === "hurtBlock") {
       placeMultipleObjects("hurtBlock");
     }
@@ -4247,6 +4300,10 @@ function redo() {
     placeBlock(x, y, type, destination);
   }
 
+  else if (type[type.length - 1] === "sword") {
+    placeSword(x, y, type, destination);
+  }
+
   else if (type[type.length - 1] === "hurtBlock") {
     placeHurtBlock(x, y, type);
   }
@@ -4371,7 +4428,7 @@ function initializeTables() {
   stoneP = [24, 9, true, "grey", "stonePlatformM", 24, 9, true, false, false, "platform"];
   crateBtn = [24, 24, false, "grey", "crate", 24, 24, true, false, 3, "breakableObject"];
   gateBtn = [24, 24, false, "grey", "gateImg", 24, 24, true, false, false, "gate"];
-  swordBtn = [24, 32, null, null, "swordInRock", 24, 24, null, null, null, "sword"];
+  swordBtn = [50, 50, null, null, "swordInRock", 24, 24, null, null, null, "sword"];
 
   //Make table containing all object presets
   objectLibrary = [
@@ -4401,7 +4458,7 @@ function initializeTables() {
   ];
 
   //Stages
-  createdStages = {stage1, Stage2, Stage3, stage4};
+  createdStages = {stage1, stage2, stage3, stage4};
 }
 
 function setUpGUI() {
@@ -4927,7 +4984,7 @@ function loadUserStage(stageName, mode){
   if (userStages[stageName]){
     madeStage = userStages[stageName];
   }
-  else if (createdStages[stageName]){
+  else if (createdStages[stageName.toLowerCase()]){
     madeStage = createdStages[stageName];
     localforage.setItem("platformer_lastStage", stageName);
   }
