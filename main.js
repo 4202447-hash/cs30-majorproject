@@ -47,7 +47,7 @@ let pYVel = 0;
 let pmaxX = 5;
 let pmaxY = 5;
 let pMoveDir = 1;
-let swordObtained = true;
+let swordObtained = false;
 
 //For stages and stage creator
 let internalStages = {};
@@ -172,6 +172,7 @@ let spikeUp;
 let gateImg;
 let fallingSpike;
 let swordInRock;
+let rock;
 
 //Cave background textures
 let cave2;
@@ -278,6 +279,7 @@ function preload() {
   stoneStageMR = loadImage("PropsTextures/stoneStageMiddleR.png");
   gateImg = loadImage("PropsTextures/portal.png");
   swordInRock = loadImage("PropsTextures/SwordInRock.png");
+  rock = loadImage("PropsTextures/rock.png");
 
   //Breakable objects
   crate = loadImage("BreakableObjects/Crate.png");
@@ -426,6 +428,12 @@ function setup() {
       createMenuUI();
       stageManagerUI();
     });
+
+    localforage.getItem("platformer_hasSword").then((savedData) =>{
+      if (savedData){
+        swordObtained = savedData;
+      }
+    });
   });
 }
 
@@ -543,6 +551,31 @@ function keyPressed() {
 
   if (key === "e") {
     player.heal();
+  }
+
+  if (key === "q") {
+    let gridX = Math.floor(player.x / cellSize);
+    let gridY = Math.floor(player.y / cellSize);
+
+    let radius = 2;
+
+    for (let x = gridX - radius; x <= gridX + radius; x++){
+      for (let y = gridY - radius; y <= gridY + radius; y++){
+        let safetyCheck = mapGrid[gridX];
+        let otherSafetyCheck = mapGrid[x];
+
+        if (!safetyCheck || !otherSafetyCheck){
+          continue;
+        }
+
+        let item = mapGrid[x][y];
+
+        if (item instanceof SwordInRock){
+          item.interact();
+          return;
+        }
+      }
+    }
   }
 
   if (key === "m" && gameMode === "playing"){
@@ -1697,6 +1730,10 @@ class Player extends Humanoid {
   }
 
   enableSword(){
+    if (!swordObtained){
+      return;
+    }
+
     this.swordEnabled = true;
     this.currentWeapon = "sword";
     this.rangeX = 80;
@@ -2277,7 +2314,7 @@ class Mushroom extends Humanoid {
     let floorCheckX = this.x + lookAhead;
     let floorCheckY = this.bottom + 9;
 
-    if (this.actionState === "idle" && (checkIfPath(floorCheckX, floorCheckY))){
+    if (this.actionState === "idle" && checkIfPath(floorCheckX, floorCheckY)){
       this.moveSpeed = 2;
     }
   }
@@ -2531,7 +2568,7 @@ class MovingPlatform extends Platform{
       
       //Drag the player along
       let dX = this.x - this.lastX;
-      item.x += dX * 2; //honestly not sure why the *2 is there just found it worked after testing a lot. Maybe because the player is generally touching two platforms?
+      item.x = item instanceof Player ? item. x + dX * 2 : item.x + dX; //honestly not sure why the *2 is there just found it worked after testing a lot. Maybe because the player is generally touching two platforms?
       
       let dY = this.y - this.lastY;
       item.y += dY;
@@ -2617,23 +2654,33 @@ class SwordInRock{
     this.y = y;
     this.sizeX = 50;
     this.sizeY = 50;
+    this.type = "sword";
   }
 
   display(){
     push();
     translate(0, 10);
 
-    image(imageTable[this.image], this.x, this.y, this.sizeX, this.sizeY);
+    image(imageTable[this.image], this.x, this.y + 3, this.sizeX, this.sizeY);
 
     if (abs(player.x - this.x) < 50 && gameMode === "playing"){
-      text("Q", this.x, this.y - 48);
+      stroke(0);
+      fill(0);
+      textSize(15);
+      text("Q", this.x - 5, this.y - 48);
     }
 
     pop();
   }
 
   interact(){
-    
+    fade = "out";
+    setTimeout(() => {
+      this.image = "rock";
+      swordObtained = true;
+      localforage.setItem("platformer_hasSword", swordObtained).then(() =>{
+      });
+    }, 500);
   }
 }
 //Takes small parts of a given image and shoots them outwards like debris
@@ -3393,10 +3440,12 @@ function handleFade() {
 
   //if we are fading in, return to none once done
   else if (fade === "in") {
-    fadeAmount -= fadeRate;
-    if (fadeAmount <= 0) {
-      fade = "none";
-    }
+    setTimeout(() => {
+      fadeAmount -= fadeRate;
+      if (fadeAmount <= 0) {
+        fade = "none";
+      }
+    }, 500);
   }
 
   //Draw the rectangle for the fade
@@ -4400,7 +4449,7 @@ function initializeTables() {
     pebbleDeath, pebbleIdle, pebbleRun,
 
     //Misc
-    swordInRock,
+    swordInRock, rock
   };
   
   //Initialzie blocks for dev mode and stage maker
@@ -4714,6 +4763,11 @@ function loadStage(stage){
         let golem = new Golem(x * cellSize + cellSize/2, (y - 1) * cellSize + cellSize/2);
         newMap[x][y] = golem;
         entities.push(golem);
+      }
+
+      if (item.type === "sword"){
+        let sword = new SwordInRock(x * cellSize + cellSize/2, y * cellSize + cellSize / 2);
+        newMap[x][y] = sword;
       }
     }
   }
