@@ -174,7 +174,9 @@ class Bat extends Humanoid{
     //If it is the correct frame to advance frames advance
     if (frameCount % anim.spriteSpeed === 0) {
       let lastFrame = this.currentFrame;
-      this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
+      if (freezeFrames === 0){
+        this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
+      }
 
       if (this.actionState === "idle" && this.currentFrame === 0 && abs(this.startingY - this.y) > this.maxDistance && this.active){
         this.yVel -= random(this.minSpeed, this.maxSpeed);
@@ -231,7 +233,7 @@ class Bat extends Humanoid{
     }
 
     image(
-      imageTable[this.currentSheet],
+      imageArray[this.currentSheet],
       0,
       0,
       this.frameWidth * this.imageScale * this.xScale,

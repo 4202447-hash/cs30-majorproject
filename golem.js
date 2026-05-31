@@ -218,7 +218,7 @@ class Golem extends Humanoid{
     }
 
     //Apply gravity
-    if (!this.grounded && this.actionState) {
+    if (!this.grounded) {
       this.yVel += GRAVITATIONALFORCE;
     }
 
@@ -369,7 +369,7 @@ class Golem extends Humanoid{
     }
 
     image(
-      imageTable[this.currentSheet],
+      imageArray[this.currentSheet],
       0,
       0,
       this.frameWidth * this.imageScale * this.xScale,
@@ -767,9 +767,6 @@ class Pebble extends Humanoid{
     //Movement
 
     //If there is nothing ahead of us return to idle as the player has gotten away
-    let lookAhead = this.directionFacing === "right" ? 25 : -25;
-    let floorCheckX = this.x + lookAhead;
-    let floorCheckY = this.bottom + 5;
 
     if (this.moveDir !== 0 && this.moveSpeed !== 0) {
       this.speed = this.moveSpeed;
@@ -782,10 +779,10 @@ class Pebble extends Humanoid{
 
     //Apply gravity
     if (!this.grounded && this.actionState) {
-      this.yVel += GRAVITATIONALFORCE;
+      this.yVel = Math.min(this.yVel + GRAVITATIONALFORCE, 20);
     }
 
-    this.y += this.yVel;
+    this.y += this.yVel
     this.x = this.x + this.xVel;
 
     //Apply friction, 1/4 in air
@@ -850,7 +847,7 @@ class Pebble extends Humanoid{
       else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {
         //Whenever we get hit, check if we are still alive
         if (this.actionState === "death") {
-          this.actionState = "death" + this.mode;
+          this.actionState = "death"
           this.active = false;
           entities = entities.filter(item => item !== this);
         }
@@ -866,7 +863,7 @@ class Pebble extends Humanoid{
     }
 
     image(
-      imageTable[this.currentSheet],
+      imageArray[this.currentSheet],
       0,
       0,
       this.frameWidth * this.imageScale * this.xScale,
@@ -880,6 +877,7 @@ class Pebble extends Humanoid{
     //Reset
     pop();
     fill(255);
+    rect(this.x, this.y, this.sizeX, this.sizeY)
   }
 
   handleState() {
@@ -914,6 +912,7 @@ class Pebble extends Humanoid{
 
   //What to do when hit
   onHit() {
+    this.moveSpeed = 0;
     this.health = 0;
     this.actionState = "death";
   }
@@ -1026,5 +1025,1110 @@ class Pebble extends Humanoid{
         }  
       }, 250);
     }
+  }
+}
+
+class ArmoredGolem extends Humanoid{
+  constructor(x, y){
+    super(x, y)
+    this.type = "armGolem";
+    this.mode = "armored";
+    this.raisingPillars = false;
+    this.active = true;
+    this.centerX = 1476;
+    this.centerY = 444;
+    this.imageScale = 4;
+    this.sizeY = 30 * this.imageScale;
+    this.sizeX = 20 * this.imageScale;
+    this.pillarY = this.bottom = this.y + this.sizeY / 2; //Just set this so we know where to sprout pillars from
+    this.moveSpeed = 0;
+    this.health = 100;
+    this.moveDir = 0;
+    this.actionState = "idle";
+    this.timeSinceIdle = 0;
+    this.lastModeSwitch = 0;
+    this.hitCD = 300;
+    this.stageWidth = 50 * cellSize
+    this.flashLength = 150;
+    
+    //Attack specific
+    this.lastPillars = -8000
+    this.pillarsCD = 8000;
+    this.lastSweep = -2000;
+    this.sweepCD = 5000;
+    this.lastShot = -6000;
+    this.shotCD = 8000;
+    this.lastRock = -4000;
+    this.rockCD = 4000;
+    this.pillarsActive = false;
+
+    //Animations
+    this.frameWidth = 0;
+    this.frameHeight = 0;
+    this.currentSheet = 0;
+    this.yCrop = 0;
+
+    //Neutral golem counterpart anims
+    this.atkA = "golemAtkA";
+    this.atkC = "golemAtkC";
+    this.deathA = "golemDeathA";
+    this.deathB = "golemDeathB";
+    this.idleA = "golemIdleA";
+    this.idleB = "golemIdleB";
+    this.reset = "golemReset";
+    this.stun = "golemStun";
+
+    //Armoured Golem anims
+    this.idle = "armGolemIdle"
+    this.sweep = "armGolemSweep"
+    this.break = "armGolemBreak"
+    this.ability = "armGolemAbility"
+    this.shoot = "armGolemShoot"
+    this.pillars = "armGolemPillars"
+
+    this.sprites = {
+      idleA: {
+        sheet: this.idleA,
+        totalFrames: 4,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 12,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        shouldLoop: true,
+      },
+
+      idleB: {
+        sheet: this.idleB,
+        totalFrames: 4,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 12,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        shouldLoop: true,
+      },
+
+      attackA: {
+        sheet: this.atkA,
+        totalFrames: 12,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 3,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        oneTime: true
+      },
+
+      attackC: {
+        sheet: this.atkC,
+        totalFrames: 5,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        oneTime: true,
+        breakPoint: 4
+      },
+
+      deathA: {
+        sheet: this.deathA,
+        totalFrames: 5,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        breakPoint: 4,
+        oneTime: true
+      },
+
+      deathB: {
+        sheet: this.deathB,
+        totalFrames: 9,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        breakPoint: 4
+      },
+
+      reset: {
+        sheet: this.reset,
+        totalFrames: 7,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 3,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        oneTime: true,
+        breakPoint: 4
+      },
+
+      idle: {
+        sheet: this.idle,
+        totalFrames: 4,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 8,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        shouldLoop: true,
+      },
+
+      sweep: {
+        sheet: this.sweep,
+        totalFrames: 8,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        oneTime: true,
+        breakPoint: 4
+      },
+
+      shoot: {
+        sheet: this.shoot,
+        totalFrames: 10,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        oneTime:true,
+        breakPoint: 4
+      },
+
+      raisePillar: {
+        sheet: this.pillars,
+        totalFrames: 5,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        breakPoint: 4
+      },
+      
+      lowerPillar: {
+        sheet: this.pillars,
+        totalFrames: 5,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 6,
+        breakPoint: 4,
+        oneTime: true,
+        rowOffset: 1, //Literally only needed for this animation as it starts on the second row
+      },
+
+      armourBreak: {
+        sheet: this.break,
+        totalFrames: 5,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        shouldLoop: true,
+        breakPoint: 4
+      },
+
+      ability: {
+        sheet: this.ability,
+        totalFrames: 5,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        shouldLoop: true,
+        breakPoint: 4
+      },
+    };
+  }
+
+  applyForces(){
+    if (this.moveSpeed !== 0) {
+      this.speed = this.moveSpeed;
+
+      this.moveDir = this.directionFacing === "right" ? -1 : 1;
+
+      this.xVel = this.moveDir * this.speed;
+    }
+
+    //Apply gravity
+    if (!this.grounded && !this.raisingPillars) {
+      this.yVel += GRAVITATIONALFORCE / 2;
+    }
+
+    this.y += this.yVel;
+    this.x = this.x + this.xVel;
+
+    //Reset ground state
+    this.grounded = false;
+
+    //Movement
+    this.top = this.y - this.sizeY / 2;
+    this.bottom = this.y + this.sizeY / 2;
+    this.left = this.x - this.sizeX / 2;
+    this.right = this.x + this.sizeX / 2;
+  }
+
+  display() {
+    //Reset animation frame
+    if (this.actionState !== this.lastActionState) {
+      this.currentFrame = 0;
+      this.lastActionState = this.actionState;
+    }
+
+    //Identify current anim and define variables
+    let anim = this.sprites[this.actionState];
+    let column = this.currentFrame;
+    this.frameWidth = this.sprites[this.actionState].imageWidth;
+    this.frameHeight = this.sprites[this.actionState].imageHeight;
+
+    if (anim.breakPoint){
+      column = this.currentFrame % anim.breakPoint;
+      let currentRow = Math.floor(this.currentFrame / anim.breakPoint);
+      this.yCrop = 64 * currentRow;
+
+      if (anim.rowOffset){
+        this.yCrop += 64 * anim.rowOffset;
+      }
+    }
+    else{
+      this.yCrop = 0;
+    }
+
+    this.xCrop = (column) * this.frameWidth;
+
+    this.currentSheet = anim.sheet;
+    this.totalImage = anim.totalFrames;
+
+    //Make origin at Mushrooms"s current position to flip player image when neccesary
+    push();
+    translate(this.x, this.y);
+
+    if (this.directionFacing === "left"){
+      scale(-1, 1);
+    }
+
+    //If it is the correct frame to advance frames advance
+    if (frameCount % anim.spriteSpeed === 0) {
+      let lastFrame = this.currentFrame;
+      if (freezeFrames === 0){
+        this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
+      }
+
+      if (this.actionState === "shoot" && this.currentFrame === 7){
+      this.shootProjectile();
+      this.moveSpeed = 0;
+    }
+
+    if (this.actionState === "shoot" && this.currentFrame === 5){
+      this.moveSpeed = 3;
+    }
+
+      //If animation shouldn"t loop, and isn"t one time, hold last frame
+      if (this.currentFrame === 0 && !anim.shouldLoop && !anim.oneTime) {
+        this.currentFrame = lastFrame;
+      }
+
+      if (this.actionState === "sweep" && this.currentFrame === 6){
+        this.createShockwave();
+      }
+
+      //If animation is onetime, return to idle after finished, also deal with attack stages
+      else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {   
+        {
+          this.lastActionState = this.actionState;
+          this.actionState = "idle"
+        }
+      }
+    }
+
+    if (millis() - this.lastHitTaken < this.flashLength) {
+      drawingContext.filter = "brightness(30) contrast(2)"; 
+    }
+
+    image(
+      imageArray[this.currentSheet],
+      0,
+      0,
+      this.frameWidth * this.imageScale * this.xScale,
+      this.frameHeight * this.imageScale * this.yScale,
+      this.xCrop,
+      this.yCrop,
+      this.frameWidth,
+      anim.charHeight
+    );
+    
+    //Reset
+    pop();
+    fill(255);
+  }
+
+  checkCollision(item) {
+    if (this.cantCollide || !this.active) {
+      return;
+    }
+
+    //Proper collisions
+    let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
+    let overlapY = (item.sizeY + this.sizeY) / 2 - Math.abs(item.y - this.y);
+
+    if (overlapX > 0 && overlapY > 0) {
+      return true;
+    }
+  }
+
+  update() {
+    if (this.checkCollision(player)){
+      this.applyHit();
+    };
+    this.runAI();
+  }
+
+  applyHit() {
+    //Player hit on touch (if not dodging)
+    if (this.checkCollision(player)) {
+      //Dont damage when dodging
+      if (player.actionState === "rolling" && this.actionState.startsWith("attack")) {
+        player.didDodge();
+        return;
+      }
+
+      player.gotHit();
+
+      if (this.x < player.x) {
+        if (!player.grounded) {
+          player.xVel = 6;
+        }
+        else {
+          player.xVel = 7;
+        }
+      }
+
+      else {
+        if (!player.grounded) {
+          player.xVel = -6;
+        }
+        else {
+          player.xVel = -7;
+        }
+      }
+
+      player.yVel = player.grounded ? -3 : -5; 
+      screenShake = 4;
+    }
+  }
+
+  onHit(damage) {
+    if (!this.active){
+      return;
+    }
+
+    this.lastHitTaken = millis();
+    this.health -= damage || 1;
+  }
+
+  raisePillars(){
+    this.raisingPillars = true;
+    this. x =lerp(this.x, this.centerX, 0.1)
+    this.y = lerp(this.y, this.centerY, 0.1)
+    this.yVel = 0;
+
+    if (abs(this.x - this.centerX) < 1){
+      this.actionState = "raisePillar"
+
+      let direction = random() < 0.5 ? 1 : -1
+      let stageLeft = this.centerX - this.stageWidth / 2 
+      let safeZoneWidth = 3 * cellSize
+
+      let pillarPos = []
+
+      for (let x = stageLeft; x < stageLeft + this.stageWidth - safeZoneWidth; x+= 100){
+        pillarPos.push(x);
+      }
+
+      if (direction === -1) pillarPos.reverse(); //Changes the direction from which the pillars sprout
+
+      for (let x = 0; x < pillarPos.length - 1; x++){
+        setTimeout(() => {
+          if (!this.active){
+            return
+          }
+
+          let pillar = new Pillars(pillarPos[x], this.pillarY)
+          entities.push(pillar);
+          screenShake = 4 + 0.5 * x;
+        }, 200 * x);
+
+        setTimeout(() => {
+          if (!this.active){
+            return
+          }
+          let warning = new PillarWarning(pillarPos[x], this.pillarY + 50)
+          entities.push(warning)
+        }, 100);
+      }
+
+      this.lastPillars = millis();
+      setTimeout(() => {
+        this.pillarsActive = false;
+        this.raisingPillars = false;
+        this.actionState = "lowerPillar"
+      }, 200 * pillarPos.length + 1000);
+    }
+  }
+
+  shootRock(){
+    screenShake = 4;
+    //These coordinates are from the map
+    let x = 108;
+    let y = 636;
+    let rock = new GiantRock(x, y, 1, "right", 6, 0)
+    entities.push(rock);
+  }
+
+  createShockwave(){
+    let x = this.x;
+    x = this.directionFacing === "left" ? x - 40 : 40;
+    let newShockwave = new ShockWave(x, this.bottom - 65);
+    entities.push(newShockwave);
+  }
+
+  shootProjectile(){
+    let direction = player.x > this.x ? 1 : -1
+    let projectile = new Projectile(this.x, this.y, direction)
+    entities.push(projectile);
+  }
+
+  runAI(){
+    //If being hit return
+    if ( 
+      !this.active) {
+      return;
+    }
+
+    //This is what makes the golem face the player
+    this.hasTarget = true;
+
+    if (player.x > this.x) {
+      this.directionFacing = "right";
+    }
+    else if (player.x < this.x ) {
+      this.directionFacing = "left";
+    }  
+
+    // if (millis() - this.lastPillars > this.pillarsCD && !this.pillarsActive){
+    //   this.raisePillars();
+    // }
+
+    // if (millis() - this.lastSweep > this.sweepCD && !this.actionState !== "sweep"){
+    //   this.actionState = "sweep"
+        //  this.lastSweep = millis();
+    // }
+
+    // if (millis() - this.lastShot > this.shotCD && !this.actionState !== "shoot"){
+    //   // this.actionState = "shoot"
+    //   // this.lastShot = millis();
+    // }
+
+    if (millis() - this.lastRock > this.rockCD && !this.actionState !== "shoot"){
+      this.shootRock();
+      this.lastRock = millis();
+    }
+  }
+}
+
+class Pillars{
+  constructor(x, y){
+    this.img = "pillarImg";
+    this.hitboxes = [0, 0, 0, 75, 75, 60, 30, 20, 0]; //numbers from testing
+    this.x = x;
+    this.y = y;
+    this.sizeX = 100;
+    this.sizeY = 100;
+    this.imageScale = 3;
+    this.actionState = "ability"
+    this.currentFrame = 0;
+    this.active = true;
+
+    this.sprites = {
+      ability: {
+        sheet: this.img,
+        totalFrames: 9,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        breakPoint: 3,
+        oneTime: true
+      },
+    }
+  }
+
+  update(){
+    this.display()
+    this.applyHit();
+  }
+
+  display() {
+    //Identify current anim and define variables
+    let anim = this.sprites[this.actionState];
+    let column = this.currentFrame;
+
+    this.frameWidth = this.sprites[this.actionState].imageWidth;
+    this.frameHeight = this.sprites[this.actionState].imageHeight;
+
+    if (anim.breakPoint){
+      column = this.currentFrame % anim.breakPoint;
+      let currentRow = Math.floor(this.currentFrame / anim.breakPoint);
+      this.yCrop = 64 * currentRow;
+    }
+    else{
+      this.yCrop = 0;
+    }
+
+    this.xCrop = (column + anim.startFrame) * this.frameWidth;
+
+    this.currentSheet = anim.sheet;
+    this.totalImage = anim.totalFrames;
+
+    //Make origin at Mushrooms"s current position to flip player image when neccesary
+    push();
+    translate(this.x, this.y);
+
+    if (this.directionFacing === "left"){
+      scale(-1, 1);
+    }
+
+    //If it is the correct frame to advance frames advance
+    if (frameCount % anim.spriteSpeed === 0) {
+      let lastFrame = this.currentFrame;
+      if (freezeFrames === 0){
+        this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
+      }
+
+      //If animation shouldn"t loop, and isn"t one time, hold last frame
+      if (this.currentFrame === 0 && !anim.shouldLoop && !anim.oneTime) {
+        this.currentFrame = lastFrame;
+      }
+
+      //If animation is onetime, return to idle after finished, also deal with attack stages
+      else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {
+        entities = entities.filter(entity => entity !== this)
+      }
+    }
+
+    image(
+      imageArray[this.currentSheet],
+      0,
+      0,
+      this.frameWidth * this.imageScale,
+      this.frameHeight * this.imageScale,
+      this.xCrop,
+      this.yCrop,
+      this.frameWidth,
+      anim.charHeight
+    );
+    
+    //Reset
+    pop();
+    fill(255)
+  }
+
+  applyHit() {
+    if (!this.active) {
+      return;
+    }
+
+    //Player hit on touch (if not dodging)
+    if (this.checkCollision(player)) {
+      //Dont damage when dodging
+      if (player.actionState === "rolling") {
+        player.didDodge();
+        return;
+      }
+
+      player.gotHit();
+
+      player.yVel = -8;
+
+      screenShake = 4;
+    }
+  }
+
+  checkCollision(item) {
+    if (!this.active) {
+      return;
+    }
+
+    //Proper collisions
+    let sizeY = this.hitboxes[this.currentFrame] //This will make more sense if you look at the sprite sheet. Essentially just getting the appropriate hitbox for how tall the pillar currently is
+
+    let hitboxCenterY = this.y + (this.sizeY/2 - sizeY/2); //We want hitboxes to sprout from the bottom from the bottom of the img rather than the middle
+    let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
+    let overlapY = (item.sizeY + sizeY) / 2 - Math.abs(item.y - hitboxCenterY);
+
+    if (overlapX > 0 && overlapY > 0) {
+      return true;
+    }
+  }
+
+  //This is just here so the updateAll function doesn't bug out tryna call a nonexistent function
+  applyForces(){
+  }
+}
+
+class PillarWarning{
+  constructor(x, y){
+    this.x = x;
+    this.y = y;
+    this.sizeX = 150;
+    this.sizeY = 8;
+    this.creationTime = millis();
+    this.duration = 800;
+  }
+
+  update(){
+    this.display()
+
+    if (millis() - this.creationTime > this.duration){
+      entities = entities.filter(entity => entity !== this)
+    }
+  }
+
+  display(){
+    let progress = (millis() - this.creationTime) / this.duration
+    let size = sin(progress * 180) * this.sizeX //goes to its peak then returns to 0, since sin(90) is the largest it can get
+    let alpha = (1 - progress) * 200; //1 is at full progress, 200 is random offset
+    
+    push();
+    drawingContext.shadowBlur = size * 0.2;
+    drawingContext.shadowColor = "red"
+    fill(255, 0, 0, alpha)
+    noStroke();
+    rect(this.x, this.y, this.sizeX, this.sizeY);
+    drawingContext.shadowBlur = 0;
+    pop();
+  }
+
+  //Dummy functions
+  applyForces(){
+
+  }
+  checkCollision(){
+
+  }
+}
+
+class GiantRock extends Pebble{
+  constructor(x, y, moveDir, directionFacing, xVel, yVel){
+    super(x, y, moveDir, directionFacing, xVel, yVel)
+    this.imageScale = 4;
+    this.sizeX = 24;
+    this.sizeY = 24;
+    this.moveSpeed = 6;
+  }
+
+  applyHit() {
+    //Player dodges it if mushroom is currently attacking and player is rolling
+    if (!this.active || this.actionState === "stun") {
+      return;
+    }
+
+    //Player hit on touch
+    if (this.checkCollision(player)) {
+      if (millis() - player.lastHitTaken < this.hitCD) {
+        return;
+      }
+
+      //If player is blocking get stunned
+      if (player.actionState === "blocking" && this.directionFacing !== player.directionFacing) {
+        freezeFrames = 10;
+        screenShake = 4;
+        this.moveDir *= -1
+        this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
+        this.sizeX = this.normalSize;
+        player.didBlock();
+        return;
+      }
+
+      //Dont damage when dodging
+      if (player.actionState === "rolling") {
+        player.didDodge();
+        return;
+      }
+
+      player.gotHit();
+      this.onHit();
+
+      if (this.x < player.x) {
+        if (!player.grounded) {
+          player.xVel = 5;
+        }
+        else {
+          player.xVel = 6;
+        }
+      }
+
+      else {
+        if (!player.grounded) {
+          player.xVel = -5;
+        }
+        else {
+          player.xVel = -6;
+        }
+      }
+
+      player.yVel = player.grounded ? -3 : -5; 
+      screenShake = 4;
+    }
+  }
+}
+
+class ShockWave{
+  constructor(x, y){
+    this.x = x;
+    this.y = y;
+    this.sizeX = 100;
+    this.sizeY = 10;
+    this.startSizeX = 100;
+    this.startSizeY = 10;
+    this.maxSizeX = 250 //this is just the stage width
+    this.maxSizeY = 10;
+    this.imageScale = 4;
+    this.creation = millis();
+    this.duration = 120;
+    this.active = true;
+    this.img = "shockWaveImg"
+    this.actionState = "ability"
+    this.currentFrame = 0;
+
+
+    this.sprites = {
+      ability: {
+        sheet: this.img,
+        totalFrames: 5,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 8,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        breakPoint: 3,
+        oneTime: true
+      },
+    }
+  }
+
+  update(){
+    let progress = (millis() - this.creation) / this.duration;
+
+    if (progress >= 1){
+      entities = entities.filter(e => e !== this);
+      return;
+    }
+
+    this.sizeX = map(progress, 0, 1, this.startSizeX, this.maxSizeX);
+    this.sizeY = map(progress, 0, 1, this.startSizeY, this.maxSizeY);
+
+    this.display()
+    this.applyHit();
+  }
+
+  display(){
+    //Identify current anim and define variables
+    let anim = this.sprites[this.actionState];
+    let column = this.currentFrame;
+
+    this.frameWidth = this.sprites[this.actionState].imageWidth;
+    this.frameHeight = this.sprites[this.actionState].imageHeight;
+
+    if (anim.breakPoint){
+      column = this.currentFrame % anim.breakPoint;
+      let currentRow = Math.floor(this.currentFrame / anim.breakPoint);
+      this.yCrop = 64 * currentRow;
+    }
+    else{
+      this.yCrop = 0;
+    }
+
+    this.xCrop = (column + anim.startFrame) * this.frameWidth;
+
+    this.currentSheet = anim.sheet;
+    this.totalImage = anim.totalFrames;
+
+    //Make origin at Mushrooms"s current position to flip player image when neccesary
+    push();
+    translate(this.x, this.y);
+
+    if (this.directionFacing === "left"){
+      scale(-1, 1);
+    }
+
+    //If it is the correct frame to advance frames advance
+    if (frameCount % anim.spriteSpeed === 0) {
+      let lastFrame = this.currentFrame;
+      if (freezeFrames === 0){
+        this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
+      }
+
+      //If animation shouldn"t loop, and isn"t one time, hold last frame
+      if (this.currentFrame === 0 && !anim.shouldLoop && !anim.oneTime) {
+        this.currentFrame = lastFrame;
+      }
+
+      //If animation is onetime, return to idle after finished, also deal with attack stages
+      else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {
+        entities = entities.filter(entity => entity !== this)
+      }
+    }
+
+    let progress = (millis() - this.creation) / this.duration;
+    let alpha = map(progress, 0, 1, 255, 0);
+    tint(255, alpha);
+
+    image(
+      imageArray[this.currentSheet],
+      0,
+      0,
+      this.frameWidth * this.imageScale,
+      this.frameHeight * this.imageScale,
+      this.xCrop,
+      this.yCrop,
+      this.frameWidth,
+      anim.charHeight
+    );
+    
+    //Reset
+    pop();
+    fill(255)
+    // rect(this.x, (this.y + 48), this.sizeX, this.sizeY)
+  }
+
+  applyHit() {
+    if (!this.active) {
+      return;
+    }
+
+    //Player hit on touch (if not dodging)
+    if (this.checkCollision(player)) {
+      //Dont damage when dodging
+      if (player.actionState === "rolling") {
+        player.didDodge();
+        return;
+      }
+
+      player.gotHit();
+
+      if (this.x < player.x) {
+        if (!player.grounded) {
+          player.xVel = 5;
+        }
+        else {
+          player.xVel = 6;
+        }
+      }
+
+      else {
+        if (!player.grounded) {
+          player.xVel = -5;
+        }
+        else {
+          player.xVel = -6;
+        }
+      }
+
+      screenShake = 4;
+    }
+  }
+
+  checkCollision(item) {
+    if (!this.active) {
+      return;
+    }
+
+    //Proper collisions
+    let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
+    let overlapY = (item.sizeY + this.sizeY) / 2 - Math.abs(item.y - (this.y + 48));
+
+    if (overlapX > 0 && overlapY > 0) {
+      return true;
+    }
+  }
+
+  applyForces(){
+
+  }
+}
+
+class Projectile{
+  constructor(x, y, moveDir){
+    this.img = "projectileImg";
+    this.x = x;
+    this.y = y;
+    this.sizeX = 48;
+    this.sizeY = 48;
+    this.imageScale = 3;
+    this.actionState = "ability"
+    this.currentFrame = 0;
+    this.active = true;
+    this.moveDir = moveDir
+    this.moveSpeed = 6;
+    this.creation = millis();
+    this.duration = 2000;
+
+    this.sprites = {
+      ability: {
+        sheet: this.img,
+        totalFrames: 3,
+        imageWidth: 64,
+        imageHeight: 64,
+        spriteSpeed: 6,
+        yOffset: 0,
+        charHeight: 64,
+        startFrame: 0,
+        breakPoint: 2,
+        shouldLoop: true,
+      },
+    }
+  }
+
+  update(){
+    this.display()
+    this.applyHit();
+
+    this.x += this.moveDir * this.moveSpeed
+
+    if (millis() - this.creation > this.duration){
+      entities = entities.filter(entity => entity !== this)
+    }
+  }
+
+  display() {
+    
+    //Identify current anim and define variables
+    let anim = this.sprites[this.actionState];
+    let column = this.currentFrame;
+
+    this.frameWidth = this.sprites[this.actionState].imageWidth;
+    this.frameHeight = this.sprites[this.actionState].imageHeight;
+
+    if (anim.breakPoint){
+      column = this.currentFrame % anim.breakPoint;
+      let currentRow = Math.floor(this.currentFrame / anim.breakPoint);
+      this.yCrop = 64 * currentRow;
+    }
+    else{
+      this.yCrop = 0;
+    }
+
+    this.xCrop = (column + anim.startFrame) * this.frameWidth;
+
+    this.currentSheet = anim.sheet;
+    this.totalImage = anim.totalFrames;
+
+    //Make origin at Mushrooms"s current position to flip player image when neccesary
+    push();
+    translate(this.x, this.y);
+
+    scale(-1, 1);
+
+    //If it is the correct frame to advance frames advance
+    if (frameCount % anim.spriteSpeed === 0) {
+      let lastFrame = this.currentFrame;
+      if (freezeFrames === 0){
+        this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
+      }
+
+      //If animation shouldn"t loop, and isn"t one time, hold last frame
+      if (this.currentFrame === 0 && !anim.shouldLoop && !anim.oneTime) {
+        this.currentFrame = lastFrame;
+      }
+
+      if (this.currentFrame === 0 && anim.shouldLoop) {
+        this.currentFrame = 0;
+      }
+    }
+
+    image(
+      imageArray[this.currentSheet],
+      0,
+      0,
+      this.frameWidth * this.imageScale,
+      this.frameHeight * this.imageScale,
+      this.xCrop,
+      this.yCrop,
+      this.frameWidth,
+      anim.charHeight
+    );
+    
+    //Reset
+    pop();
+    fill(255)
+    // rect(this.x, this.y, this.sizeX, this.sizeY);
+  }
+
+  applyHit() {
+    if (!this.active) {
+      return;
+    }
+
+    //Player hit on touch (if not dodging)
+    if (this.checkCollision(player)) {
+      //Dont damage when dodging
+      if (player.actionState === "rolling") {
+        player.didDodge();
+        return;
+      }
+
+      player.gotHit();
+
+      player.yVel = -8;
+
+      screenShake = 4;
+    }
+  }
+
+  checkCollision(item) {
+    if (!this.active) {
+      return;
+    }
+
+    //Proper collisions
+    let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
+    let overlapY = (item.sizeY + this.sizeY) / 2 - Math.abs(item.y - this.y);
+
+    if (overlapX > 0 && overlapY > 0) {
+      return true;
+    }
+  }
+
+  //This is just here so the updateAll function doesn't bug out tryna call a nonexistent function
+  applyForces(){
   }
 }

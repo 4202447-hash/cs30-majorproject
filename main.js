@@ -82,6 +82,9 @@ let stage1;
 let stage2;
 let stage3;
 let stage4;
+let stage5;
+let stage6;
+
 
 //Animations and sprites
 //Player
@@ -134,6 +137,18 @@ let golemRun;
 let golemBtnImg;
 let golemReset;
 let golemStun;
+
+//Armoured Golem
+let armGolemAbility;
+let armGolemBreak;
+let armGolemPillars;
+let armGolemSweep;
+let armGolemShoot;
+let armGolemIdle;
+let armGolemBtnImg;
+let pillarImg;
+let projectileImg;
+let shockWaveImg;
 
 //Pebble
 let pebbleDeath;
@@ -250,6 +265,18 @@ function preload() {
   golemReset = loadImage("Golem/Golem_Reset.png");
   golemStun = loadImage("Golem/golem_stun.png");
 
+  //Armoured Golem
+  armGolemAbility = loadImage("ArmouredGolem/Golem_Armor_Ability.png");
+  armGolemBreak = loadImage("ArmouredGolem/Golem_Armor_ArmorBreak.png");
+  armGolemPillars = loadImage("ArmouredGolem/Golem_Armor_AttackA.png");
+  armGolemIdle = loadImage("ArmouredGolem/Golem_Armor_Idle.png");
+  armGolemShoot = loadImage("ArmouredGolem/Golem_Armor_AttackC.png");
+  armGolemSweep = loadImage("ArmouredGolem/Golem_Armor_AttackB.png");
+  armGolemBtnImg = loadImage("ArmouredGolem/GolemBtn.png");
+  pillarImg = loadImage("ArmouredGolem/Golem_Armor_AttackA_FX.png");
+  projectileImg = loadImage("ArmouredGolem/Golem_Armor_AttackC_FX.png");
+  shockWaveImg = loadImage("ArmouredGolem/Golem_Armor_AttackB_FX.png");
+
   //Pebble
   pebbleDeath = loadImage("Pebble/Pebble_Death.png");
   pebbleIdle = loadImage("Pebble/Pebble_Idle.png");
@@ -302,6 +329,8 @@ function preload() {
   stage2 = loadJSON("stages/stage2.json");
   stage3 = loadJSON("stages/stage3.json");
   stage4 = loadJSON("stages/stage4.json");
+  stage5 = loadJSON("stages/stage5.json");
+  stage6 = loadJSON("stages/stage6.json");
 
   //Cave background
   for (let i = 1; i < 7; i++){
@@ -310,7 +339,7 @@ function preload() {
 }
 
 //list of images
-let imageTable = {};
+let imageArray = {};
 
 //Platform tables
 let deadGrassPlatform;
@@ -411,6 +440,14 @@ function setup() {
 
     if (!userStages["Stage 4"]) {
       userStages["Stage 4"] = structuredClone(stage4);
+    }
+
+    if (!userStages["Stage 5"]) {
+      userStages["Stage 5"] = structuredClone(stage5);
+    }
+
+    if (!userStages["Stage 6"]) {
+      userStages["Stage 6"] = structuredClone(stage6);
     }
 
     localforage.getItem("platformer_lastStage").then((savedData) => {
@@ -792,7 +829,7 @@ class Player extends Humanoid {
 
     //Attacks and cooldowns
     this.currentHit = 1;
-    this.hitCD = 300;
+    this.hitCD = 550;
     this.blockCooldown = 1000;
     this.lastBlock = 0;
     this.lastPhase = 0;
@@ -1504,7 +1541,7 @@ class Player extends Humanoid {
     }
 
     image(
-      imageTable[this.currentSheet],
+      imageArray[this.currentSheet],
       0,
       this.lastActionState === "ledgeClimb"
         ? 0
@@ -1661,7 +1698,7 @@ class Player extends Humanoid {
 
     fill(219, 231, 62);
 
-    if (abs(this.yellowBar - this.goalYellowBar) > 0.01){
+    if (abs(this.yellowBar - this.goalYellowBar) > 0.1){
 
       drawingContext.shadowBlur = 25;
       drawingContext.shadowColor = color(219, 231, 62); 
@@ -1717,7 +1754,7 @@ class Player extends Humanoid {
 
   //Have seperate functions for these sort of things incase I want to add additional things 
   didBlock(){
-    this.goalYellowBar = Math.min(100, this.yellowBar + 50);
+    this.goalYellowBar = Math.min(100, this.yellowBar + 51);
   }
 
   didDodge(){
@@ -1738,6 +1775,7 @@ class Player extends Humanoid {
     this.currentWeapon = "sword";
     this.rangeX = 80;
     this.currentHit = 1;
+    this.rangeY = 60;
   }
 
   disableSword(){
@@ -1745,6 +1783,7 @@ class Player extends Humanoid {
     this.currentWeapon = "punch";
     this.rangeX = 40;
     this.currentHit = 1;
+    this.rangeY = 30;
   }
 
   heal(){
@@ -2126,7 +2165,7 @@ class Mushroom extends Humanoid {
     }
 
     image(
-      imageTable[this.currentSheet],
+      imageArray[this.currentSheet],
       this.actionState === "attack" ? 25 : 0,
       -verticalOffset + this.sizeY / 2,
       this.frameWidth * this.imageScale * this.xScale,
@@ -2349,8 +2388,8 @@ class Platform {
     push();
     translate(this.x, this.y);
     rotate(this.rotation);
-    if (imageTable[this.img]) {
-      image(imageTable[this.img], 0, 0, this.sizeX, this.sizeY);
+    if (imageArray[this.img]) {
+      image(imageArray[this.img], 0, 0, this.sizeX, this.sizeY);
     }
     else{
       //If no image just make rectangle
@@ -2455,13 +2494,18 @@ class Platform {
 
     if (overlapX > 0 && overlapY > 0) {
       //This is code which makes the pebble enmy explode upon contact with a block once theyve attacked once
-      if (item instanceof Pebble && item.attacked){
+      if (item instanceof Pebble && item.attacked && ! (item instanceof GiantRock)){
         item.onHit(1);
       }
 
       if (overlapX < overlapY || overlapX < FOOTOFFSET) {
         if (this.oneWay){
           return;
+        }
+        if (item instanceof GiantRock) {
+          if (Math.abs(item.xVel) > 0.1 || overlapY > 10) {
+            item.onHit(1);
+          }
         }
 
         //Hitting right
@@ -2614,7 +2658,7 @@ class FallingSpike extends HurtBlock{
     this.gridPosY = this.y / cellSize;
     this.type = "fallingSpike";
     this.erWidth = this.sizeX * 8;
-    this.erHeight = 400;
+    this.erHeight = 800;
     this.anchored = true;
     this.checkY = this.y + this.erHeight/2;
     this.yVel = 0;
@@ -2649,7 +2693,7 @@ class FallingSpike extends HurtBlock{
 
 class SwordInRock{
   constructor(x, y){
-    this.image = "swordInRock";
+    this.image = swordObtained ? "rock" : "swordInRock";
     this.x = x;
     this.y = y;
     this.sizeX = 50;
@@ -2661,7 +2705,7 @@ class SwordInRock{
     push();
     translate(0, 10);
 
-    image(imageTable[this.image], this.x, this.y + 3, this.sizeX, this.sizeY);
+    image(imageArray[this.image], this.x, this.y + 3, this.sizeX, this.sizeY);
 
     if (abs(player.x - this.x) < 50 && gameMode === "playing"){
       stroke(0);
@@ -2784,14 +2828,14 @@ class BreakableObject {
 
       for (let i = 0; i < 25; i++) {
         debrisCount++;
-        this.chunks.push(new Debris (this.x, this.y, imageTable[this.img], this.sizeX, this.sizeY, true));
+        this.chunks.push(new Debris (this.x, this.y, imageArray[this.img], this.sizeX, this.sizeY, true));
       }
     }
 
     else {
       for (let i = 0; i < 5; i++) {
         debrisCount++;
-        this.chunks.push(new Debris (this.x, this.y, imageTable[this.img], this.sizeX, this.sizeY, false));
+        this.chunks.push(new Debris (this.x, this.y, imageArray[this.img], this.sizeX, this.sizeY, false));
       }
     }
   }
@@ -2799,7 +2843,7 @@ class BreakableObject {
   //Displays object
   display() {
     if (this.active) {
-      image(imageTable[this.img], this.x, this.y, this.sizeX, this.sizeY);
+      image(imageArray[this.img], this.x, this.y, this.sizeX, this.sizeY);
     }
 
     for (let i = this.chunks.length - 1; i >= 0; i--) {
@@ -3013,7 +3057,7 @@ function checkDevModePost() {
     }
 
     //This function works for most mobs so we can reuse it
-    else if (selected[selected.length - 1] === "bat" || selected[selected.length - 1] === "golem") {
+    else if (selected[selected.length - 1] === "bat" || selected[selected.length - 1] === "golem" || selected[selected.length - 1] === "armGolem") {
       displayBat();
     }
 
@@ -3171,7 +3215,48 @@ function updateAll() {
     let y = entity.y/cellSize;
 
     if (x < endX){
-      if (entity !== player){
+      if (entity !== player && !(entity instanceof ArmoredGolem)){
+        entity.display();
+        if (gameMode === "playing" && freezeFrames === 0){
+          entity.update();
+          entity.applyForces();
+
+          if (entity instanceof Pillars || entity instanceof PillarWarning || entity instanceof Projectile){
+            continue
+          }
+
+          //Here we need to check collisions for the platforms right underneath the entity as collision only runs for the entities in the 
+          //Camera which can cause the entity to fall through the floor
+          let gridX = Math.floor(entity.x / cellSize);
+          let gridY = Math.floor(entity.y / cellSize);
+
+          let radius = 2;
+
+          for (let x = gridX - radius; x <= gridX + radius; x++){
+            if (!mapGrid[gridX]){
+              continue;
+            }
+
+            for (let y = gridY; y <= gridY + radius; y++){
+              let safetyCheck = mapGrid[gridX];
+              let otherSafetyCheck = mapGrid[x];
+
+              if (!safetyCheck || !otherSafetyCheck){
+                continue;
+              }
+
+
+              let item = mapGrid[x][y];
+
+              if (item && item.checkCollision && !entities.includes(item) && !(item instanceof MovingPlatform)  && !(item instanceof FallingSpike)){
+                item.checkCollision(entity);
+              }
+            }
+          }
+        }
+      }
+
+      else if (entity instanceof ArmoredGolem){
         entity.display();
         if (gameMode === "playing" && freezeFrames === 0){
           entity.update();
@@ -3182,7 +3267,7 @@ function updateAll() {
           let gridX = Math.floor(entity.x / cellSize);
           let gridY = Math.floor(entity.y / cellSize);
 
-          let radius = 2;
+          let radius = 4;
 
           for (let x = gridX - radius; x <= gridX + radius; x++){
             if (!mapGrid[gridX]){
@@ -3523,7 +3608,7 @@ function displaySword(givenX, givenY){
 
       tint(255, 127);
 
-      let displayImage = imageTable["swordInRock"];
+      let displayImage = imageArray["swordInRock"];
       let drawX = gridX * cellSize + cellSize/2;
       let drawY = gridY * cellSize + cellSize/2 + 10;
 
@@ -3559,7 +3644,7 @@ function displayBlock(givenX, givenY) {
 
       tint(255, 127);
 
-      let displayImage = imageTable[selected[4]];
+      let displayImage = imageArray[selected[4]];
       let drawX = gridX * cellSize + cellSize/2;
       let drawY = gridY * cellSize + cellSize/2;
 
@@ -3595,7 +3680,7 @@ function displayBat(givenX, givenY) {
 
       tint(255, 127);
 
-      let displayImage = imageTable[selected[4]];
+      let displayImage = imageArray[selected[4]];
       let drawX = gridX * cellSize + cellSize/2;
       let drawY = gridY * cellSize + cellSize/2;
 
@@ -3654,7 +3739,7 @@ function displayPlayer() {
   tint(255, 127);
 
   image(
-    imageTable[player.idleSheet],
+    imageArray[player.idleSheet],
     drawX,
     drawY,
     player.frameWidth * player.imageScale * player.xScale,
@@ -3728,9 +3813,16 @@ function handleDeletes(gridX, gridY){
   else if (mapGrid[gridX][gridY] === "mushroom") {
     deleteArea(gridX, gridY - 1, 1, 2);
   }
+
   else if (mapGrid[gridX][gridY] === "golem") {
+    deleteArea(gridX, gridY - 1, 1, 2);
+  }
+
+  else if (mapGrid[gridX][gridY] instanceof Golem){
+    console.log("Wasnt")
     deleteArea(gridX, gridY, 1, 2);
   }
+
   else {
     entities = entities.filter(entity => entity !== mapGrid[gridX][gridY]);
     movingPlatforms = movingPlatforms.filter(entity => entity !== mapGrid[gridX][gridY]);
@@ -3930,6 +4022,7 @@ function placeMultipleObjects(type){
     "bat": placeBat,
     "golem": placeGolem,
     "sword": placeSword,
+    "armGolem": placeArmGolem,
   };
 
   let targetFunction = placementFunctions[type];
@@ -4090,6 +4183,11 @@ function placeGolem(givenX, givenY){
   let gridX = givenX || Math.floor(worldX/cellSize);
   let gridY = givenY || Math.floor(worldY/cellSize);
 
+  //Safety check to filter out any of the existing golem items here
+  if (mapGrid[gridX][gridY] instanceof Golem){
+    entities = entities.filter(e => e !== mapGrid[gridX][gridY]);
+  }
+
   //if no position on grid return
   if (!mapGrid[gridX] || checkDuplicate(gridX, gridY, selected)) {
     return;
@@ -4107,6 +4205,37 @@ function placeGolem(givenX, givenY){
   mapGrid[gridX][gridY] = golem;
   mapGrid[gridX][gridY + 1] = "golem";
   entities.push(golem);
+}
+
+function placeArmGolem(givenX, givenY){
+  let worldX = mouseX/mapScale - cameraX;
+  let worldY = mouseY/mapScale - cameraY;
+
+  //Position on grid
+  let gridX = givenX || Math.floor(worldX/cellSize);
+  let gridY = givenY || Math.floor(worldY/cellSize);
+
+  //again filter check to watch out for multi placing
+  if (mapGrid[gridX][gridY] instanceof ArmoredGolem){
+    entities = entities.filter(e => e !== mapGrid[gridX][gridY]);
+  }
+
+  //if no position on grid return
+  if (!mapGrid[gridX] || checkDuplicate(gridX, gridY, selected)) {
+    return;
+  }
+
+  let drawX = gridX * cellSize + cellSize/2;
+  let drawY = gridY * cellSize + cellSize/2;
+
+  let armGolem = new ArmoredGolem(drawX, drawY);
+  
+  handleDeletes(gridX, gridY - 1);
+
+  //If not already a mushroom there place mushroom
+  blocksPlaced.push([gridX, gridY, selected]);
+  mapGrid[gridX][gridY] = armGolem;
+  entities.push(armGolem);
 }
 
 //Places bat onto map for dev mode
@@ -4177,6 +4306,10 @@ function placeObject() {
 
     else if (selected[selected.length - 1] === "golem") {
       placeMultipleObjects("golem");
+    }
+
+    else if (selected[selected.length - 1] === "armGolem") {
+      placeMultipleObjects("armGolem");
     }
 
     else if (selected[selected.length - 1] === "gate") {
@@ -4279,6 +4412,7 @@ function undo(){
   }
 
   if (type[type.length - 1] === "golem") {
+    entities = entities.filter(entity instanceof Golem && Math.floor(entity.x / cellSize) === x)
     mapGrid[x][y] = NOBLOCK;
     mapGrid[x][y + 1] = NOBLOCK;
 
@@ -4408,7 +4542,7 @@ function initializeTables() {
   stoneStage = [stoneStageL, stoneStageM, stoneStageR];
 
   //Initalize image table so I can seperate text referance and actual image for JSON saving
-  imageTable = {
+  imageArray = {
   // Player Animations
     playerIdleSheet, playerrollingSheet, playerJumpSheet, playerRunningSheet,
     playerPunch1, playerPunch2, playerPunch3, playerSprintSheet,
@@ -4448,6 +4582,9 @@ function initializeTables() {
     //Pebble
     pebbleDeath, pebbleIdle, pebbleRun,
 
+    //Armoured Golem
+    armGolemAbility, armGolemBreak, armGolemBtnImg, armGolemIdle, armGolemPillars, armGolemShoot, armGolemSweep, pillarImg, projectileImg, shockWaveImg,
+
     //Misc
     swordInRock, rock
   };
@@ -4468,6 +4605,7 @@ function initializeTables() {
   mushroomBtn = [100, 100, null, null, "mushroomButtonImg", null, null, null, null, null, "mushroom"];
   batBtn = [60, 60, null, null, "batButtonImg", null, null, null, null, null, "bat"];
   golemBtn = [60, 60, null, null, "golemBtnImg", null, null, null, null, null, "golem"];
+  armoredGolemBtn = [200, 240, null, null, "armGolemBtnImg", null, null, null, null, null, "armGolem"];
 
   deadGrassPLeft = [24, 9, true, "grey", "deadGrassPlatformL", 24, 9, true, false, false, "platform"];
   deadGrassPRight = [24, 9, true, "grey", "deadGrassPlatformR", 24, 9, true, false, false, "platform"];
@@ -4495,6 +4633,7 @@ function initializeTables() {
     mushroomBtn,
     batBtn,
     golemBtn,
+    armoredGolemBtn,
     deadGrassPLeft,
     deadGrassPMid,
     deadGrassPRight,
@@ -4507,7 +4646,7 @@ function initializeTables() {
   ];
 
   //Stages
-  createdStages = {stage1, stage2, stage3, stage4};
+  createdStages = {stage1, stage2, stage3, stage4, stage5};
 }
 
 function setUpGUI() {
@@ -4601,7 +4740,7 @@ function setUpGUI() {
     button.style("background-color", "transparent");
     
     //Get the corresponding image for our button and convert to form which the button can use
-    let imageItem = imageTable[object[4]];
+    let imageItem = imageArray[object[4]];
     let convertedData = imageItem.canvas.toDataURL();
 
     //Add image
@@ -4763,6 +4902,12 @@ function loadStage(stage){
         let golem = new Golem(x * cellSize + cellSize/2, (y - 1) * cellSize + cellSize/2);
         newMap[x][y] = golem;
         entities.push(golem);
+      }
+
+      if (item.type === "armGolem") {
+        let armoredGolem = new ArmoredGolem(x * cellSize + cellSize/2, (y - 1) * cellSize + cellSize/2);
+        newMap[x][y] = armoredGolem;
+        entities.push(armoredGolem);
       }
 
       if (item.type === "sword"){
