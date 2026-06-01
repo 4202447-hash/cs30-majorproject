@@ -1396,7 +1396,7 @@ class Player extends Humanoid {
 
             this.alrHit.push(item);
             let damage = this.currentWeapon === "punch" ? 1 : 2;
-            item.onHit(damage);
+            item.onHit(damage)
             this.didHit();
             screenShake = 4;
             if (this.actionState.startsWith(this.currentWeapon) && !pushedBack){
@@ -1562,7 +1562,7 @@ class Player extends Humanoid {
   //Function to hit, used for any M1 attack
   hit() {
     if (
-      millis() - this.lastHit < this.hitCD ||
+      millis() - this.lastHitTaken < this.hitCD ||
       this.actionState === "rolling" ||
       this.actionState === "ledgeClimb" || this.actionState.startsWith("punch") || this.actionState.startsWith("sword")
     ) {

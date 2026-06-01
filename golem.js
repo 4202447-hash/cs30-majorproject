@@ -1050,17 +1050,19 @@ class ArmoredGolem extends Humanoid{
     this.hitCD = 300;
     this.stageWidth = 50 * cellSize
     this.flashLength = 150;
+    this.timeNearPlayer = 0;
     
     //Attack specific
-    this.lastPillars = -8000
-    this.pillarsCD = 8000;
+    this.lastPillars = -12000
+    this.pillarsCD = 15000;
     this.lastSweep = -2000;
     this.sweepCD = 5000;
     this.lastShot = -6000;
     this.shotCD = 8000;
-    this.lastRock = -4000;
-    this.rockCD = 4000;
+    this.lastRock = -2500;
+    this.rockCD = 2500;
     this.pillarsActive = false;
+    this.sweeping = false;
 
     //Animations
     this.frameWidth = 0;
@@ -1339,13 +1341,14 @@ class ArmoredGolem extends Humanoid{
         this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
       }
 
-      if (this.actionState === "shoot" && this.currentFrame === 7){
-      this.shootProjectile();
-      this.moveSpeed = 0;
+    if (this.actionState === "shoot" && this.currentFrame === 5){
+      this.moveSpeed = 10;
     }
 
-    if (this.actionState === "shoot" && this.currentFrame === 5){
-      this.moveSpeed = 3;
+    if (this.actionState === "shoot" && this.currentFrame === 7){
+      this.shootProjectile();
+      this.moveSpeed = 0;
+      this.xVel = 0;
     }
 
       //If animation shouldn"t loop, and isn"t one time, hold last frame
@@ -1453,7 +1456,7 @@ class ArmoredGolem extends Humanoid{
 
   raisePillars(){
     this.raisingPillars = true;
-    this. x =lerp(this.x, this.centerX, 0.1)
+    this.x =lerp(this.x, this.centerX, 0.1)
     this.y = lerp(this.y, this.centerY, 0.1)
     this.yVel = 0;
 
@@ -1512,14 +1515,14 @@ class ArmoredGolem extends Humanoid{
 
   createShockwave(){
     let x = this.x;
-    x = this.directionFacing === "left" ? x - 40 : 40;
+    x = this.directionFacing === "left" ? x - 40 : x + 40;
     let newShockwave = new ShockWave(x, this.bottom - 65);
     entities.push(newShockwave);
   }
 
   shootProjectile(){
     let direction = player.x > this.x ? 1 : -1
-    let projectile = new Projectile(this.x, this.y, direction)
+    let projectile = new Projectile(this.x, this.y + 15, direction, this)
     entities.push(projectile);
   }
 
@@ -1540,21 +1543,68 @@ class ArmoredGolem extends Humanoid{
       this.directionFacing = "left";
     }  
 
-    // if (millis() - this.lastPillars > this.pillarsCD && !this.pillarsActive){
-    //   this.raisePillars();
-    // }
+    //Record how long the player has been within shockwave reach of the player
+    let dX = abs(player.x - this.x);
+    let dY = abs(player.y - this.y)
+    if (dX < 150 && dY < 150){
+      this.timeNearPlayer += 1;
+    }
+    else {
+      this.timeNearPlayer = 0;
+    }
 
-    // if (millis() - this.lastSweep > this.sweepCD && !this.actionState !== "sweep"){
-    //   this.actionState = "sweep"
-        //  this.lastSweep = millis();
-    // }
+    if (this.pillarsActive || this.actionState === "sweep" || this.actionState == "shoot"){
+      return
+    }
 
-    // if (millis() - this.lastShot > this.shotCD && !this.actionState !== "shoot"){
-    //   // this.actionState = "shoot"
-    //   // this.lastShot = millis();
-    // }
+    //Shockwave if the player is nearby for a long time
+    if (this.timeNearPlayer > 100 && millis() - this.lastSweep > this.sweepCD && !this.pillarsActive && !this.sweeping){
+      this.actionState = "sweep";
+      this.lastSweep = millis();
+      this.timeNearPlayer = 0;
+      
+      if (this.health < 50){
+        this.sweeping = true;
+        setTimeout(() => {
+          this.actionState = "sweep";
+          this.lastSweep = millis();
+          this.timeNearPlayer = 0;
+          this.sweeping = false;
+        }, 400);
+      }
+      return
+    }
 
-    if (millis() - this.lastRock > this.rockCD && !this.actionState !== "shoot"){
+    //Pillars the high priority spammy attack
+    if (millis() - this.lastPillars > this.pillarsCD && !this.pillarsActive && !this.sweeping){
+      this.raisePillars();
+      return;
+    }
+
+    if (millis() - this.lastShot > this.shotCD && !this.pillarsActive && !this.sweeping && this.grounded){
+      this.actionState = "shoot"
+      this.lastShot = millis();
+      if (this.health < 40){
+        setTimeout(() => {
+          this.actionState = "shoot"
+          this.lastShot = millis();
+        }, 300);
+
+        setTimeout(() => {
+          this.actionState = "shoot"
+          this.lastShot = millis();
+        }, 600);
+      }
+
+      else if (this.health < 70){
+        setTimeout(() => {
+          this.actionState = "shoot"
+          this.lastShot = millis();
+        }, 300);
+      }
+    }
+    
+    if (millis() - this.lastRock > this.rockCD){
       this.shootRock();
       this.lastRock = millis();
     }
@@ -1701,6 +1751,10 @@ class Pillars{
   //This is just here so the updateAll function doesn't bug out tryna call a nonexistent function
   applyForces(){
   }
+
+  onHit(){
+
+  }
 }
 
 class PillarWarning{
@@ -1741,6 +1795,9 @@ class PillarWarning{
 
   }
   checkCollision(){
+
+  }
+  onHit(){
 
   }
 }
@@ -1981,13 +2038,16 @@ class ShockWave{
     }
   }
 
+  //dummy functions
   applyForces(){
 
   }
+
+  onHit(){};
 }
 
 class Projectile{
-  constructor(x, y, moveDir){
+  constructor(x, y, moveDir, parent){
     this.img = "projectileImg";
     this.x = x;
     this.y = y;
@@ -1998,9 +2058,12 @@ class Projectile{
     this.currentFrame = 0;
     this.active = true;
     this.moveDir = moveDir
+    this.directionFacing = moveDir === 1 ? "left" : "right"
     this.moveSpeed = 6;
     this.creation = millis();
     this.duration = 2000;
+    this.reflected = false;
+    this.parent = parent;
 
     this.sprites = {
       ability: {
@@ -2056,7 +2119,9 @@ class Projectile{
     push();
     translate(this.x, this.y);
 
-    scale(-1, 1);
+    if (this.directionFacing === "right"){
+      scale(-1, 1);
+    }
 
     //If it is the correct frame to advance frames advance
     if (frameCount % anim.spriteSpeed === 0) {
@@ -2099,19 +2164,32 @@ class Projectile{
     }
 
     //Player hit on touch (if not dodging)
-    if (this.checkCollision(player)) {
+    if (!this.reflected){
+      if (this.checkCollision(player)) {
       //Dont damage when dodging
       if (player.actionState === "rolling") {
         player.didDodge();
         return;
       }
 
+      if (player.actionState === "blocking"){{
+        this.moveDir *= -1;
+        this.directionFacing = this.directionFacing === "left" ? "right" : "left"
+        this.reflected = true;
+        this.creation = millis();
+        return
+      }}
+
       player.gotHit();
-
-      player.yVel = -8;
-
       screenShake = 4;
+      }
     }
+    else{
+      if (this.checkCollision(this.parent)){
+        this.parent.onHit();
+      }
+    }
+    
   }
 
   checkCollision(item) {
@@ -2127,6 +2205,8 @@ class Projectile{
       return true;
     }
   }
+
+  onHit(){}
 
   //This is just here so the updateAll function doesn't bug out tryna call a nonexistent function
   applyForces(){
