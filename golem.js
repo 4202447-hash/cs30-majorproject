@@ -782,7 +782,7 @@ class Pebble extends Humanoid{
       this.yVel = Math.min(this.yVel + GRAVITATIONALFORCE, 20);
     }
 
-    this.y += this.yVel
+    this.y += this.yVel;
     this.x = this.x + this.xVel;
 
     //Apply friction, 1/4 in air
@@ -847,7 +847,7 @@ class Pebble extends Humanoid{
       else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {
         //Whenever we get hit, check if we are still alive
         if (this.actionState === "death") {
-          this.actionState = "death"
+          this.actionState = "death";
           this.active = false;
           entities = entities.filter(item => item !== this);
         }
@@ -877,7 +877,6 @@ class Pebble extends Humanoid{
     //Reset
     pop();
     fill(255);
-    rect(this.x, this.y, this.sizeX, this.sizeY)
   }
 
   handleState() {
@@ -1030,7 +1029,7 @@ class Pebble extends Humanoid{
 
 class ArmoredGolem extends Humanoid{
   constructor(x, y){
-    super(x, y)
+    super(x, y);
     this.type = "armGolem";
     this.mode = "armored";
     this.raisingPillars = false;
@@ -1048,19 +1047,19 @@ class ArmoredGolem extends Humanoid{
     this.timeSinceIdle = 0;
     this.lastModeSwitch = 0;
     this.hitCD = 300;
-    this.stageWidth = 50 * cellSize
+    this.stageWidth = 50 * cellSize;
     this.flashLength = 150;
     this.timeNearPlayer = 0;
     
     //Attack specific
-    this.lastPillars = -12000
+    this.lastPillars = -12000;
     this.pillarsCD = 15000;
     this.lastSweep = -2000;
     this.sweepCD = 5000;
     this.lastShot = -6000;
     this.shotCD = 8000;
-    this.lastRock = -2500;
-    this.rockCD = 2500;
+    this.lastRock = 0;
+    this.rockCD = 4000;
     this.pillarsActive = false;
     this.sweeping = false;
 
@@ -1081,12 +1080,12 @@ class ArmoredGolem extends Humanoid{
     this.stun = "golemStun";
 
     //Armoured Golem anims
-    this.idle = "armGolemIdle"
-    this.sweep = "armGolemSweep"
-    this.break = "armGolemBreak"
-    this.ability = "armGolemAbility"
-    this.shoot = "armGolemShoot"
-    this.pillars = "armGolemPillars"
+    this.idle = "armGolemIdle";
+    this.sweep = "armGolemSweep";
+    this.break = "armGolemBreak";
+    this.ability = "armGolemAbility";
+    this.shoot = "armGolemShoot";
+    this.pillars = "armGolemPillars";
 
     this.sprites = {
       idleA: {
@@ -1321,7 +1320,7 @@ class ArmoredGolem extends Humanoid{
       this.yCrop = 0;
     }
 
-    this.xCrop = (column) * this.frameWidth;
+    this.xCrop = column * this.frameWidth;
 
     this.currentSheet = anim.sheet;
     this.totalImage = anim.totalFrames;
@@ -1341,15 +1340,15 @@ class ArmoredGolem extends Humanoid{
         this.currentFrame = (this.currentFrame + 1) % anim.totalFrames;
       }
 
-    if (this.actionState === "shoot" && this.currentFrame === 5){
-      this.moveSpeed = 10;
-    }
+      if (this.actionState === "shoot" && this.currentFrame === 5){
+        this.moveSpeed = 10;
+      }
 
-    if (this.actionState === "shoot" && this.currentFrame === 7){
-      this.shootProjectile();
-      this.moveSpeed = 0;
-      this.xVel = 0;
-    }
+      if (this.actionState === "shoot" && this.currentFrame === 7){
+        this.shootProjectile();
+        this.moveSpeed = 0;
+        this.xVel = 0;
+      }
 
       //If animation shouldn"t loop, and isn"t one time, hold last frame
       if (this.currentFrame === 0 && !anim.shouldLoop && !anim.oneTime) {
@@ -1364,7 +1363,7 @@ class ArmoredGolem extends Humanoid{
       else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {   
         {
           this.lastActionState = this.actionState;
-          this.actionState = "idle"
+          this.actionState = "idle";
         }
       }
     }
@@ -1456,42 +1455,44 @@ class ArmoredGolem extends Humanoid{
 
   raisePillars(){
     this.raisingPillars = true;
-    this.x =lerp(this.x, this.centerX, 0.1)
-    this.y = lerp(this.y, this.centerY, 0.1)
+    this.x =lerp(this.x, this.centerX, 0.1);
+    this.y = lerp(this.y, this.centerY, 0.1);
     this.yVel = 0;
 
     if (abs(this.x - this.centerX) < 1){
-      this.actionState = "raisePillar"
+      this.actionState = "raisePillar";
 
-      let direction = random() < 0.5 ? 1 : -1
-      let stageLeft = this.centerX - this.stageWidth / 2 
-      let safeZoneWidth = 3 * cellSize
+      let direction = random() < 0.5 ? 1 : -1;
+      let stageLeft = this.centerX - this.stageWidth / 2; 
+      let safeZoneWidth = 3 * cellSize;
 
-      let pillarPos = []
+      let pillarPos = [];
 
       for (let x = stageLeft; x < stageLeft + this.stageWidth - safeZoneWidth; x+= 100){
         pillarPos.push(x);
       }
 
-      if (direction === -1) pillarPos.reverse(); //Changes the direction from which the pillars sprout
+      if (direction === -1) {
+        pillarPos.reverse();
+      } //Changes the direction from which the pillars sprout
 
       for (let x = 0; x < pillarPos.length - 1; x++){
         setTimeout(() => {
           if (!this.active){
-            return
+            return;
           }
 
-          let pillar = new Pillars(pillarPos[x], this.pillarY)
+          let pillar = new Pillars(pillarPos[x], this.pillarY);
           entities.push(pillar);
           screenShake = 4 + 0.5 * x;
         }, 200 * x);
 
         setTimeout(() => {
           if (!this.active){
-            return
+            return;
           }
-          let warning = new PillarWarning(pillarPos[x], this.pillarY + 50)
-          entities.push(warning)
+          let warning = new PillarWarning(pillarPos[x], this.pillarY + 50);
+          entities.push(warning);
         }, 100);
       }
 
@@ -1499,7 +1500,7 @@ class ArmoredGolem extends Humanoid{
       setTimeout(() => {
         this.pillarsActive = false;
         this.raisingPillars = false;
-        this.actionState = "lowerPillar"
+        this.actionState = "lowerPillar";
       }, 200 * pillarPos.length + 1000);
     }
   }
@@ -1509,7 +1510,7 @@ class ArmoredGolem extends Humanoid{
     //These coordinates are from the map
     let x = 108;
     let y = 636;
-    let rock = new GiantRock(x, y, 1, "right", 6, 0)
+    let rock = new GiantRock(x, y, 1, "right", 6, 0);
     entities.push(rock);
   }
 
@@ -1521,8 +1522,8 @@ class ArmoredGolem extends Humanoid{
   }
 
   shootProjectile(){
-    let direction = player.x > this.x ? 1 : -1
-    let projectile = new Projectile(this.x, this.y + 15, direction, this)
+    let direction = player.x > this.x ? 1 : -1;
+    let projectile = new Projectile(this.x, this.y + 25, direction, this);
     entities.push(projectile);
   }
 
@@ -1534,7 +1535,13 @@ class ArmoredGolem extends Humanoid{
     }
 
     //This is what makes the golem face the player
-    this.hasTarget = true;
+    if (abs(player.x - this.x < 200)){
+      this.hasTarget = true;
+    }
+    
+    if (!this.hasTarget){
+      return;
+    }
 
     if (player.x > this.x) {
       this.directionFacing = "right";
@@ -1545,7 +1552,7 @@ class ArmoredGolem extends Humanoid{
 
     //Record how long the player has been within shockwave reach of the player
     let dX = abs(player.x - this.x);
-    let dY = abs(player.y - this.y)
+    let dY = abs(player.y - this.y);
     if (dX < 150 && dY < 150){
       this.timeNearPlayer += 1;
     }
@@ -1554,7 +1561,7 @@ class ArmoredGolem extends Humanoid{
     }
 
     if (this.pillarsActive || this.actionState === "sweep" || this.actionState == "shoot"){
-      return
+      return;
     }
 
     //Shockwave if the player is nearby for a long time
@@ -1572,7 +1579,7 @@ class ArmoredGolem extends Humanoid{
           this.sweeping = false;
         }, 400);
       }
-      return
+      return;
     }
 
     //Pillars the high priority spammy attack
@@ -1582,23 +1589,23 @@ class ArmoredGolem extends Humanoid{
     }
 
     if (millis() - this.lastShot > this.shotCD && !this.pillarsActive && !this.sweeping && this.grounded){
-      this.actionState = "shoot"
+      this.actionState = "shoot";
       this.lastShot = millis();
       if (this.health < 40){
         setTimeout(() => {
-          this.actionState = "shoot"
+          this.actionState = "shoot";
           this.lastShot = millis();
         }, 300);
 
         setTimeout(() => {
-          this.actionState = "shoot"
+          this.actionState = "shoot";
           this.lastShot = millis();
         }, 600);
       }
 
       else if (this.health < 70){
         setTimeout(() => {
-          this.actionState = "shoot"
+          this.actionState = "shoot";
           this.lastShot = millis();
         }, 300);
       }
@@ -1620,7 +1627,7 @@ class Pillars{
     this.sizeX = 100;
     this.sizeY = 100;
     this.imageScale = 3;
-    this.actionState = "ability"
+    this.actionState = "ability";
     this.currentFrame = 0;
     this.active = true;
 
@@ -1637,11 +1644,11 @@ class Pillars{
         breakPoint: 3,
         oneTime: true
       },
-    }
+    };
   }
 
   update(){
-    this.display()
+    this.display();
     this.applyHit();
   }
 
@@ -1689,7 +1696,7 @@ class Pillars{
 
       //If animation is onetime, return to idle after finished, also deal with attack stages
       else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {
-        entities = entities.filter(entity => entity !== this)
+        entities = entities.filter(entity => entity !== this);
       }
     }
 
@@ -1707,7 +1714,7 @@ class Pillars{
     
     //Reset
     pop();
-    fill(255)
+    fill(255);
   }
 
   applyHit() {
@@ -1737,7 +1744,7 @@ class Pillars{
     }
 
     //Proper collisions
-    let sizeY = this.hitboxes[this.currentFrame] //This will make more sense if you look at the sprite sheet. Essentially just getting the appropriate hitbox for how tall the pillar currently is
+    let sizeY = this.hitboxes[this.currentFrame]; //This will make more sense if you look at the sprite sheet. Essentially just getting the appropriate hitbox for how tall the pillar currently is
 
     let hitboxCenterY = this.y + (this.sizeY/2 - sizeY/2); //We want hitboxes to sprout from the bottom from the bottom of the img rather than the middle
     let overlapX = (item.sizeX + this.sizeX) / 2 - Math.abs(item.x - this.x);
@@ -1768,22 +1775,22 @@ class PillarWarning{
   }
 
   update(){
-    this.display()
+    this.display();
 
     if (millis() - this.creationTime > this.duration){
-      entities = entities.filter(entity => entity !== this)
+      entities = entities.filter(entity => entity !== this);
     }
   }
 
   display(){
-    let progress = (millis() - this.creationTime) / this.duration
-    let size = sin(progress * 180) * this.sizeX //goes to its peak then returns to 0, since sin(90) is the largest it can get
+    let progress = (millis() - this.creationTime) / this.duration;
+    let size = sin(progress * 180) * this.sizeX; //goes to its peak then returns to 0, since sin(90) is the largest it can get
     let alpha = (1 - progress) * 200; //1 is at full progress, 200 is random offset
     
     push();
     drawingContext.shadowBlur = size * 0.2;
-    drawingContext.shadowColor = "red"
-    fill(255, 0, 0, alpha)
+    drawingContext.shadowColor = "red";
+    fill(255, 0, 0, alpha);
     noStroke();
     rect(this.x, this.y, this.sizeX, this.sizeY);
     drawingContext.shadowBlur = 0;
@@ -1804,7 +1811,7 @@ class PillarWarning{
 
 class GiantRock extends Pebble{
   constructor(x, y, moveDir, directionFacing, xVel, yVel){
-    super(x, y, moveDir, directionFacing, xVel, yVel)
+    super(x, y, moveDir, directionFacing, xVel, yVel);
     this.imageScale = 4;
     this.sizeX = 24;
     this.sizeY = 24;
@@ -1827,7 +1834,7 @@ class GiantRock extends Pebble{
       if (player.actionState === "blocking" && this.directionFacing !== player.directionFacing) {
         freezeFrames = 10;
         screenShake = 4;
-        this.moveDir *= -1
+        this.moveDir *= -1;
         this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
         this.sizeX = this.normalSize;
         player.didBlock();
@@ -1875,14 +1882,14 @@ class ShockWave{
     this.sizeY = 10;
     this.startSizeX = 100;
     this.startSizeY = 10;
-    this.maxSizeX = 250 //this is just the stage width
+    this.maxSizeX = 250; //this is just the stage width
     this.maxSizeY = 10;
     this.imageScale = 4;
     this.creation = millis();
     this.duration = 120;
     this.active = true;
-    this.img = "shockWaveImg"
-    this.actionState = "ability"
+    this.img = "shockWaveImg";
+    this.actionState = "ability";
     this.currentFrame = 0;
 
 
@@ -1899,7 +1906,7 @@ class ShockWave{
         breakPoint: 3,
         oneTime: true
       },
-    }
+    };
   }
 
   update(){
@@ -1913,7 +1920,7 @@ class ShockWave{
     this.sizeX = map(progress, 0, 1, this.startSizeX, this.maxSizeX);
     this.sizeY = map(progress, 0, 1, this.startSizeY, this.maxSizeY);
 
-    this.display()
+    this.display();
     this.applyHit();
   }
 
@@ -1961,7 +1968,7 @@ class ShockWave{
 
       //If animation is onetime, return to idle after finished, also deal with attack stages
       else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {
-        entities = entities.filter(entity => entity !== this)
+        entities = entities.filter(entity => entity !== this);
       }
     }
 
@@ -1983,7 +1990,7 @@ class ShockWave{
     
     //Reset
     pop();
-    fill(255)
+    fill(255);
     // rect(this.x, (this.y + 48), this.sizeX, this.sizeY)
   }
 
@@ -2054,11 +2061,11 @@ class Projectile{
     this.sizeX = 48;
     this.sizeY = 48;
     this.imageScale = 3;
-    this.actionState = "ability"
+    this.actionState = "ability";
     this.currentFrame = 0;
     this.active = true;
-    this.moveDir = moveDir
-    this.directionFacing = moveDir === 1 ? "left" : "right"
+    this.moveDir = moveDir;
+    this.directionFacing = moveDir === 1 ? "left" : "right";
     this.moveSpeed = 6;
     this.creation = millis();
     this.duration = 2000;
@@ -2078,17 +2085,17 @@ class Projectile{
         breakPoint: 2,
         shouldLoop: true,
       },
-    }
+    };
   }
 
   update(){
-    this.display()
+    this.display();
     this.applyHit();
 
-    this.x += this.moveDir * this.moveSpeed
+    this.x += this.moveDir * this.moveSpeed;
 
     if (millis() - this.creation > this.duration){
-      entities = entities.filter(entity => entity !== this)
+      entities = entities.filter(entity => entity !== this);
     }
   }
 
@@ -2154,7 +2161,7 @@ class Projectile{
     
     //Reset
     pop();
-    fill(255)
+    fill(255);
     // rect(this.x, this.y, this.sizeX, this.sizeY);
   }
 
@@ -2167,21 +2174,23 @@ class Projectile{
     if (!this.reflected){
       if (this.checkCollision(player)) {
       //Dont damage when dodging
-      if (player.actionState === "rolling") {
-        player.didDodge();
-        return;
-      }
+        if (player.actionState === "rolling") {
+          player.didDodge();
+          return;
+        }
 
-      if (player.actionState === "blocking"){{
-        this.moveDir *= -1;
-        this.directionFacing = this.directionFacing === "left" ? "right" : "left"
-        this.reflected = true;
-        this.creation = millis();
-        return
-      }}
+        if (player.actionState === "blocking" && this.directionFacing === player.directionFacing){
+          {
+            this.moveDir *= -1;
+            this.directionFacing = this.directionFacing === "left" ? "right" : "left";
+            this.reflected = true;
+            this.creation = millis();
+            return;
+          }
+        }
 
-      player.gotHit();
-      screenShake = 4;
+        player.gotHit();
+        screenShake = 4;
       }
     }
     else{

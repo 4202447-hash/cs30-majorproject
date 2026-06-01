@@ -84,6 +84,7 @@ let stage3;
 let stage4;
 let stage5;
 let stage6;
+let bossArena;
 
 
 //Animations and sprites
@@ -331,6 +332,7 @@ function preload() {
   stage4 = loadJSON("stages/stage4.json");
   stage5 = loadJSON("stages/stage5.json");
   stage6 = loadJSON("stages/stage6.json");
+  bossArena = loadJSON("stages/bossArena.json");
 
   //Cave background
   for (let i = 1; i < 7; i++){
@@ -448,6 +450,10 @@ function setup() {
 
     if (!userStages["Stage 6"]) {
       userStages["Stage 6"] = structuredClone(stage6);
+    }
+
+    if (!userStages["bossArena"]) {
+      userStages["bossArena"] = structuredClone(bossArena);
     }
 
     localforage.getItem("platformer_lastStage").then((savedData) => {
@@ -829,7 +835,7 @@ class Player extends Humanoid {
 
     //Attacks and cooldowns
     this.currentHit = 1;
-    this.hitCD = 550;
+    this.hitCD = 1000;
     this.blockCooldown = 1000;
     this.lastBlock = 0;
     this.lastPhase = 0;
@@ -1563,7 +1569,7 @@ class Player extends Humanoid {
   hit() {
     if (
       millis() - this.lastHitTaken < this.hitCD ||
-      this.actionState === "rolling" ||
+      this.actionState === "rolling" || this.actionState === "downSlam" ||
       this.actionState === "ledgeClimb" || this.actionState.startsWith("punch") || this.actionState.startsWith("sword")
     ) {
       return;
@@ -1590,6 +1596,7 @@ class Player extends Humanoid {
       this.currentHit = 1;
       this.yVel = Math.max(5, this.yVel + 5);
       this.didJump = false;
+      console.log("Did");
     }
 
     //Normal punch
@@ -1775,7 +1782,7 @@ class Player extends Humanoid {
     this.currentWeapon = "sword";
     this.rangeX = 80;
     this.currentHit = 1;
-    this.rangeY = 60;
+    this.rangeY = 80;
   }
 
   disableSword(){
@@ -4646,7 +4653,7 @@ function initializeTables() {
   ];
 
   //Stages
-  createdStages = {stage1, stage2, stage3, stage4, stage5};
+  createdStages = {stage1, stage2, stage3, stage4, stage5, stage6};
 }
 
 function setUpGUI() {
