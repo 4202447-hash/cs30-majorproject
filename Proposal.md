@@ -8,11 +8,11 @@ I am going to attempt to make a 2d platformer game with combat elements, attempt
 - **A consistent art scheme** //Yeah theres a theme there
 - **Atleast one boss fight**
 - **Non-linear map building** allowing the player to go in multiple directions //WIP
-- **An ingame map** //WIP
+- **An ingame map** //done
 - **Checkpoint & Saving system** //Done current stage saves
 - **Fast paced movement** //Done with sprinting and rolling and everything
-- **8 - 12 Unique stages / levels** //2 done
-- **Atleast one weapon** option (not fists) which provides a uniqe gameplay experience compared to bae fists//havnet started
+- **8 - 12 Unique stages / levels** //5 done
+- **Atleast one weapon** //done
 - **Sound** //havent started
 
 ##Nice to have
