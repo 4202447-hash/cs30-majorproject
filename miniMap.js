@@ -30,7 +30,7 @@ function drawMiniMap(){
       let item = mapGrid[x][y];
 
       if (!item){
-        continue
+        continue;
       }
 
       furthestLeft = Math.min(x, furthestLeft);
@@ -46,7 +46,7 @@ function drawMiniMap(){
       let item = mapGrid[x][y];
 
       if (!item){
-        continue
+        continue;
       }
 
       else if (item instanceof Platform || item instanceof HurtBlock || item instanceof FallingSpike){
@@ -59,12 +59,12 @@ function drawMiniMap(){
         stroke(50, 50, 255);
       }
       else{
-        continue
+        continue;
       }
 
 
-      let posX = ((x - (furthestLeft + furthestRight) / 2) * trueScale) + width / 2 //Sort of a magic number. Idk why its just the offset that gets it to the centero f my screen
-      let posY = ((y - (bottom + top) / 2) * trueScale) + height / 2
+      let posX = (x - (furthestLeft + furthestRight) / 2) * trueScale + width / 2; //Sort of a magic number. Idk why its just the offset that gets it to the centero f my screen
+      let posY = (y - (bottom + top) / 2) * trueScale + height / 2;
       
       rect(posX, posY, trueScale);
     }
@@ -95,8 +95,8 @@ function drawMiniMap(){
       stroke(150);
     }
 
-    let trueX = ((x - (furthestLeft + furthestRight) / 2) * trueScale) + width / 2
-    let trueY = ((y - (bottom + top) / 2) * trueScale) + height / 2 - 2; //2 Less than the blocks to make it seem as enemies are on top of the blocks
+    let trueX = (x - (furthestLeft + furthestRight) / 2) * trueScale + width / 2;
+    let trueY = (y - (bottom + top) / 2) * trueScale + height / 2 - 2; //2 Less than the blocks to make it seem as enemies are on top of the blocks
 
     if (entity instanceof Player){
       drawingContext.shadowBlur = 20;
@@ -118,8 +118,8 @@ function drawMiniMap(){
 
   let sizeX = (furthestRight - furthestLeft) * trueScale;
   let sizeY = (bottom - top) * trueScale;
-  let xPos = width/2
-  let yPos = height/2
+  let xPos = width/2;
+  let yPos = height/2;
 
   rect(xPos, yPos, sizeX, sizeY);
 
@@ -135,6 +135,6 @@ function drawMiniMap(){
   textSize(55);
   text(continuedStage, xPos, height * 0.1);
 
-  stroke(0)
+  stroke(0);
   pop();
 }

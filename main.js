@@ -1144,6 +1144,8 @@ class Player extends Humanoid {
       return;
     }
 
+    console.log(this.moveDir);
+
     //Movement
     if (
       this.actionState !== "rolling" &&
@@ -1331,7 +1333,7 @@ class Player extends Humanoid {
       this.moveDir = 0;
     }
 
-    if (this.actionState === "blocking" || millis() - this.lastHitTaken < this.hitCD) {
+    if (this.actionState === "blocking") {
       this.moveDir = 0;
     }
 
@@ -1402,7 +1404,7 @@ class Player extends Humanoid {
 
             this.alrHit.push(item);
             let damage = this.currentWeapon === "punch" ? 1 : 2;
-            item.onHit(damage)
+            item.onHit(damage);
             this.didHit();
             screenShake = 4;
             if (this.actionState.startsWith(this.currentWeapon) && !pushedBack){
@@ -1596,7 +1598,6 @@ class Player extends Humanoid {
       this.currentHit = 1;
       this.yVel = Math.max(5, this.yVel + 5);
       this.didJump = false;
-      console.log("Did");
     }
 
     //Normal punch
@@ -1866,7 +1867,7 @@ class Mushroom extends Humanoid {
     this.active = true;
     this.moveSpeed = 2;
     this.attackCooldown = 1500;
-    this.health = 5;
+    this.health = 3;
     this.directionFacing = direction || "right";
     this.type = "mushroom";
     this.attackDistance = 100;
@@ -2585,10 +2586,10 @@ class MovingPlatform extends Platform{
     this.maxXBlocks = maxX;
     this.maxYBlocks = maxY;
     this.type = "movingPlatform";
-    this.xVel = xVel || 1;
+    this.xVel = xVel || 0;
     this.yVel = yVel || 0;
     this.maxX = this.maxXBlocks * cellSize; 
-    this.maxY = this.maxXBlocks * cellSize; 
+    this.maxY = this.maxYBlocks * cellSize; 
     this.startX = this.x;
     this.startY = this.y;
     this.moveDir = moveDir || 1;
@@ -2604,7 +2605,7 @@ class MovingPlatform extends Platform{
     this.x += this.xVel * this.moveDir;
     this.y += this.yVel * this.moveDir * -1;
 
-    if(abs(this.startX - this.x) >= this.maxX){
+    if(abs(this.startX - this.x) >= this.maxX || abs(this.startY - this.y) >= this.maxY){
       this.moveDir *= -1;
     }
   }
@@ -3229,7 +3230,7 @@ function updateAll() {
           entity.applyForces();
 
           if (entity instanceof Pillars || entity instanceof PillarWarning || entity instanceof Projectile){
-            continue
+            continue;
           }
 
           //Here we need to check collisions for the platforms right underneath the entity as collision only runs for the entities in the 
@@ -3826,7 +3827,7 @@ function handleDeletes(gridX, gridY){
   }
 
   else if (mapGrid[gridX][gridY] instanceof Golem){
-    console.log("Wasnt")
+    console.log("Wasnt");
     deleteArea(gridX, gridY, 1, 2);
   }
 
@@ -4419,7 +4420,7 @@ function undo(){
   }
 
   if (type[type.length - 1] === "golem") {
-    entities = entities.filter(entity instanceof Golem && Math.floor(entity.x / cellSize) === x)
+    entities = entities.filter(entity instanceof Golem && Math.floor(entity.x / cellSize) === x);
     mapGrid[x][y] = NOBLOCK;
     mapGrid[x][y + 1] = NOBLOCK;
 
@@ -4653,7 +4654,7 @@ function initializeTables() {
   ];
 
   //Stages
-  createdStages = {stage1, stage2, stage3, stage4, stage5, stage6};
+  createdStages = {stage1, stage2, stage3, stage4, stage5, stage6, bossArena};
 }
 
 function setUpGUI() {
@@ -5194,8 +5195,6 @@ function loadUserStage(stageName, mode){
     madeStage = createdStages[stageName];
     localforage.setItem("platformer_lastStage", stageName);
   }
-
-  let continuedStage = stageName;
 
   if (!madeStage){
     return;

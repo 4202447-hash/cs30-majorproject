@@ -479,7 +479,7 @@ class Golem extends Humanoid{
       if (player.actionState === "blocking" && this.directionFacing !== player.directionFacing && this.actionState === "attackC") {
         this.actionState = "stun";
         this.attackCCnt = 0;
-        freezeFrames = 10;
+        freezeFrames = 5;
         screenShake = 4;
         this.moveSpeed = 0;
         this.xVel = player.x < this.x ? 12 : -12;
@@ -945,7 +945,7 @@ class Pebble extends Humanoid{
 
       //If player is blocking get stunned
       if (player.actionState === "blocking" && this.directionFacing !== player.directionFacing) {
-        freezeFrames = 10;
+        freezeFrames = 5;
         screenShake = 4;
         this.moveSpeed = 0;
         this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
@@ -1832,7 +1832,7 @@ class GiantRock extends Pebble{
 
       //If player is blocking get stunned
       if (player.actionState === "blocking" && this.directionFacing !== player.directionFacing) {
-        freezeFrames = 10;
+        freezeFrames = 5;
         screenShake = 4;
         this.moveDir *= -1;
         this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
