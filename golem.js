@@ -1451,6 +1451,37 @@ class ArmoredGolem extends Humanoid{
 
     this.lastHitTaken = millis();
     this.health -= damage || 1;
+    if (this.health < 0){
+      this.health = 0;
+    }
+  }
+
+  rockShower(){
+    let rockPos = [];
+    let stageLeft = this.centerX - this.stageWidth / 2; 
+
+    for (let x = stageLeft + 100; x < stageLeft + this.stageWidth - 100; x+= 50){
+      rockPos.push(x);
+    }
+
+    for (let x = 0; x < 50; x++){
+      let number = Math.round(random(0, rockPos.length));
+      let posX = rockPos[number];
+      let posY = 60; //from testing
+      let lookDir = random(-1, 1);
+
+      if (lookDir >= 0){
+        lookDir = 1;
+      }
+      else{
+        lookDir = -1;
+      }
+
+      setTimeout(() => {
+        let rock = new FallingRock(posX, posY, lookDir, "right", 0, 0);
+        entities.push(rock);
+      }, x * 200);
+    }
   }
 
   raisePillars(){
@@ -1874,6 +1905,16 @@ class GiantRock extends Pebble{
   }
 }
 
+class FallingRock extends GiantRock{
+  //Literally just a giant rock but with no AI
+  constructor(x, y){
+    super(x, y, 0, 0, 0, 0);
+    this.attacked = true;
+  }
+  runAI(){
+    //Nothing
+  }
+}
 class ShockWave{
   constructor(x, y){
     this.x = x;
@@ -2185,6 +2226,7 @@ class Projectile{
             this.directionFacing = this.directionFacing === "left" ? "right" : "left";
             this.reflected = true;
             this.creation = millis();
+            player.didBlock();
             return;
           }
         }

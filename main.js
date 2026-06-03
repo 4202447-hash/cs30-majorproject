@@ -48,6 +48,7 @@ let pmaxX = 5;
 let pmaxY = 5;
 let pMoveDir = 1;
 let swordObtained = false;
+let currentBoss;
 
 //For stages and stage creator
 let internalStages = {};
@@ -84,7 +85,8 @@ let stage3;
 let stage4;
 let stage5;
 let stage6;
-let bossArena;
+let stage7;
+let bossarena;
 
 
 //Animations and sprites
@@ -332,7 +334,8 @@ function preload() {
   stage4 = loadJSON("stages/stage4.json");
   stage5 = loadJSON("stages/stage5.json");
   stage6 = loadJSON("stages/stage6.json");
-  bossArena = loadJSON("stages/bossArena.json");
+  stage7 = loadJSON("stages/stage7.json");
+  bossarena = loadJSON("stages/bossarena.json");
 
   //Cave background
   for (let i = 1; i < 7; i++){
@@ -452,8 +455,12 @@ function setup() {
       userStages["Stage 6"] = structuredClone(stage6);
     }
 
-    if (!userStages["bossArena"]) {
-      userStages["bossArena"] = structuredClone(bossArena);
+    if (!userStages["Stage 7"]) {
+      userStages["Stage 7"] = structuredClone(stage7);
+    }
+
+    if (!userStages["boss Arena"]) {
+      userStages["boss Arena"] = structuredClone(bossarena);
     }
 
     localforage.getItem("platformer_lastStage").then((savedData) => {
@@ -534,6 +541,7 @@ function draw() {
     }
 
     player.showGUI();
+    player.showHealthBar();
   }
 }
 
@@ -1212,6 +1220,51 @@ class Player extends Humanoid {
     //Reset ground state
     this.grounded = false;
     this.currentPlatform = [];
+  }
+
+  showHealthBar(){
+    push();
+    resetMatrix();
+
+    if (!currentBoss){
+      return;
+    }
+    //All magic numbers got from live testing
+
+    let maxWidth = 800
+    let healthOffset = 5;
+    let startingHeight = height * 0.9;
+    let startingWidth = width/2 - maxWidth/2;
+    let barOffset = maxWidth/2 - 3;
+    let backgroundBarWidth = 800;
+    let barHeight = 50;
+
+    //Red
+    let sizeX = map(currentBoss.health, 0, 100, 0, 800);
+
+    noStroke();
+    fill(220, 0, 0);
+
+    //Effect
+    if (abs(currentBoss.health - this.goalHealth) > 0.01){
+
+      drawingContext.shadowBlur = 25;
+      drawingContext.shadowColor = color(255, 0, 0); 
+      fill(255, 100, 100);
+    }
+
+    rect(startingWidth + sizeX/2 - healthOffset, height - startingHeight, sizeX, barHeight);
+
+    drawingContext.shadowBlur = 0;
+
+    stroke(0);
+    fill(0);
+    noFill();
+    strokeWeight(5)
+
+    rect(startingWidth + barOffset, height - startingHeight, backgroundBarWidth, barHeight + 1);
+
+    pop();
   }
 
   //Visual effect for when he gets hit
@@ -2968,6 +3021,7 @@ class Gate {
     let itemLeft = item.x - item.sizeX / 2;
     let itemRight = item.x + item.sizeX / 2;
     let itemTop = item.y - item.sizeY / 2;
+    console.log(this.to);
 
     if (
       itemRight > this.left  &&
@@ -3176,7 +3230,7 @@ function updateAll() {
   //We still want to see the player and have them animated 
   if (entities.includes(player)){
     let lastHitCntr = millis() - player.lastHitTaken;
-    if (lastHitCntr < player.hitCD * 2 && lastHitCntr > player.flashLength){
+    if (lastHitCntr < player.hitCD * 2 && lastHitCntr > player.flashLength && freezeFrames === 0){
       if (frameCount % 10 === 0){
         player.display();
       }
@@ -4654,7 +4708,7 @@ function initializeTables() {
   ];
 
   //Stages
-  createdStages = {stage1, stage2, stage3, stage4, stage5, stage6, bossArena};
+  createdStages = {stage1, stage2, stage3, stage4, stage5, stage6, stage7, bossarena};
 }
 
 function setUpGUI() {
@@ -4916,6 +4970,7 @@ function loadStage(stage){
         let armoredGolem = new ArmoredGolem(x * cellSize + cellSize/2, (y - 1) * cellSize + cellSize/2);
         newMap[x][y] = armoredGolem;
         entities.push(armoredGolem);
+        currentBoss = armoredGolem;
       }
 
       if (item.type === "sword"){
