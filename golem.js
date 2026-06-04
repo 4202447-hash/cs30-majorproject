@@ -389,7 +389,7 @@ class Golem extends Humanoid{
     //Skip if currently in an action state
     if (
       this.actionState.startsWith("attack") || 
-      this.actionState.startsWith("hit") || this.actionState.startsWith("death") ||
+      this.actionState.startsWith("hit") || this.actionState.startsWith("death") ||this.actionState === "raisePillar" ||
       this.actionState === "reset" || this.actionState === "stun"
     ) {
       return;
@@ -1050,6 +1050,8 @@ class ArmoredGolem extends Humanoid{
     this.stageWidth = 50 * cellSize;
     this.flashLength = 150;
     this.timeNearPlayer = 0;
+    this.rockSlideDone = false;
+    this.rockSliding = false;
     
     //Attack specific
     this.lastPillars = -12000;
@@ -1248,7 +1250,7 @@ class ArmoredGolem extends Humanoid{
         yOffset: 0,
         charHeight: 64,
         startFrame: 0,
-        shouldLoop: true,
+        oneTime: true,
         breakPoint: 4
       },
 
@@ -1277,8 +1279,9 @@ class ArmoredGolem extends Humanoid{
     }
 
     //Apply gravity
-    if (!this.grounded && !this.raisingPillars) {
+    if (!this.grounded && !this.raisingPillars && !this.rockSliding) {
       this.yVel += GRAVITATIONALFORCE / 2;
+      console.log("ran");
     }
 
     this.y += this.yVel;
@@ -1361,7 +1364,17 @@ class ArmoredGolem extends Humanoid{
 
       //If animation is onetime, return to idle after finished, also deal with attack stages
       else if (this.currentFrame === 0 && !anim.shouldLoop && anim.oneTime) {   
-        {
+        if (this.actionState === "armourBreak"){
+          this.lastActionState = this.actionState;
+          this.actionState = "reset";
+        }
+
+        else if (this.actionState === "reset"){
+          this.lastActionState = this.actionState;
+          this.actionState = "deathB";
+        }
+      
+        else {
           this.lastActionState = this.actionState;
           this.actionState = "idle";
         }
@@ -1458,13 +1471,14 @@ class ArmoredGolem extends Humanoid{
 
   rockShower(){
     let rockPos = [];
-    let stageLeft = this.centerX - this.stageWidth / 2; 
+    let stageLeft = this.centerX - this.stageWidth / 2;
+    this.rockSliding = true; 
 
     for (let x = stageLeft + 100; x < stageLeft + this.stageWidth - 100; x+= 50){
       rockPos.push(x);
     }
 
-    for (let x = 0; x < 50; x++){
+    for (let x = 0; x < 100; x++){
       let number = Math.round(random(0, rockPos.length));
       let posX = rockPos[number];
       let posY = 60; //from testing
@@ -1480,7 +1494,15 @@ class ArmoredGolem extends Humanoid{
       setTimeout(() => {
         let rock = new FallingRock(posX, posY, lookDir, "right", 0, 0);
         entities.push(rock);
-      }, x * 200);
+      }, x * 100);
+
+      setTimeout(() => {
+        this.rockSliding = false;
+        this.actionState = "lowerPillar";
+        setTimeout(() => {
+          this.actionState = "armourBreak";
+        }, 300);
+      }, 10000);
     }
   }
 
@@ -1505,6 +1527,9 @@ class ArmoredGolem extends Humanoid{
 
       if (direction === -1) {
         pillarPos.reverse();
+        for (let pillar of pillarPos){
+          pillar += safeZoneWidth;
+        }
       } //Changes the direction from which the pillars sprout
 
       for (let x = 0; x < pillarPos.length - 1; x++){
@@ -1560,8 +1585,25 @@ class ArmoredGolem extends Humanoid{
 
   runAI(){
     //If being hit return
+    if (this.rockSliding){
+      screenShake = 10;
+      if (abs(this.x - this.centerX) < 1){
+        this.x =lerp(this.x, this.centerX, 0.1);
+      }
+      return;
+    }
+
+    if (this.health <= 0 && !this.rockSlideDone){
+      this.yVel = 0;
+      this.rockShower();
+      this.actionState = "raisePillar";
+      this.rockSlideDone = true;
+      this.raisingPillars = false;
+      this.active = false;
+    }
+
     if ( 
-      !this.active) {
+      !this.active || this.health === 0) {
       return;
     }
 

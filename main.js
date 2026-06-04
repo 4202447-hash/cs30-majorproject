@@ -61,6 +61,7 @@ let rotation = 0;
 //Main Menu
 let mainMenuContainer;
 let stageManager;
+let instructionContainer;
 
 //Stage editor
 let sidebarX;
@@ -335,7 +336,7 @@ function preload() {
   stage5 = loadJSON("stages/stage5.json");
   stage6 = loadJSON("stages/stage6.json");
   stage7 = loadJSON("stages/stage7.json");
-  bossarena = loadJSON("stages/bossarena.json");
+  bossarena = loadJSON("stages/bossArena.json");
 
   //Cave background
   for (let i = 1; i < 7; i++){
@@ -1151,8 +1152,6 @@ class Player extends Humanoid {
       this.xVel = 0;
       return;
     }
-
-    console.log(this.moveDir);
 
     //Movement
     if (
@@ -2555,7 +2554,7 @@ class Platform {
 
     if (overlapX > 0 && overlapY > 0) {
       //This is code which makes the pebble enmy explode upon contact with a block once theyve attacked once
-      if (item instanceof Pebble && item.attacked && ! (item instanceof GiantRock)){
+      if (item instanceof Pebble && item.attacked && !((item instanceof GiantRock) && !(item instanceof FallingRock))){
         item.onHit(1);
       }
 
@@ -5002,6 +5001,16 @@ function createMenuUI(){
     text = "START";
   }
 
+  let instructions = createButton("INSTRUCTIONS");
+  instructions.parent(mainMenuContainer);
+  styleMenuButton(instructions);
+
+  instructionUI();
+
+  instructions.mousePressed(() => {
+    openInstructions(instructionContainer);
+  });
+
   let continueBtn = createButton(text);
   continueBtn.parent(mainMenuContainer);
   styleMenuButton(continueBtn);
@@ -5020,6 +5029,55 @@ function createMenuUI(){
   devButton.mousePressed(() => {
     stageManager.show();
   });
+}
+
+function openInstructions(parent){
+  parent.html(''); //Crucial to clear old list
+
+  //Close button
+  let exitButton = createButton("X").parent(parent);
+  exitButton.style("position", "absolute");
+  exitButton.style("top", "10px");
+  exitButton.style("right", "10px");
+  exitButton.style("font-size", "45px");
+  exitButton.style("border", "none");
+  exitButton.style("background", "none");
+  exitButton.style("color", "#000000");
+  exitButton.style("transition", "transform 0.1s ease-out");
+
+  exitButton.mousePressed(() => {
+    instructionContainer.hide();
+  });
+
+  exitButton.mouseOver(() => {
+    
+    exitButton.style("transform", "scale(1.5)");
+  });
+
+  exitButton.mouseOut(() => {
+    exitButton.style("transform", "scale(1)");
+  });
+
+  //Title
+  createElement("h3", "INSTRUCTIONS").parent(parent);
+
+  //Creat scrollable box to contain our stages
+  let scrollBox = createDiv("").parent(parent);
+  scrollBox.style("max-height", "300px");
+  scrollBox.style("overflow-y", "auto");
+  scrollBox.style("padding-right", "10px");
+  scrollBox.style("padding-bottom", "15px");
+
+  createElement("h6", "MOVE - A: Left D:Right").parent(scrollBox);
+  createElement("h6", "JUMP - SPACE").parent(scrollBox);
+  createElement("h6", "PARRY - F (Press F At Moment Of Hits To Reflect)").parent(scrollBox);
+  createElement("h6", "ROLL - SHIFT (Allows You To Evade Most Attacks").parent(scrollBox);
+  createElement("h6", "ATTACK - M1").parent(scrollBox);
+  createElement("h6", "EQUIP SWORD - Z (Can Be Done Once Sword Obtained)").parent(scrollBox);
+  createElement("h6", "CLIMB LEDGES - Jump At Edge Of Platform").parent(scrollBox);
+  createElement("h6", "DOWN/UP ATTACKS - M1 While S or A Keys Pressed").parent(scrollBox);
+
+  instructionContainer.show();
 }
 
 //Function to give main menu buttons 
@@ -5064,6 +5122,28 @@ function stageSideButtons(btn){
     btn.style("color", "#ffffff");
     btn.style("transform", "scale(1)");
   });
+}
+
+function instructionUI(){
+  instructionContainer = createDiv("").id("instructionContainer");
+  instructionContainer.style("position", "absolute");
+  instructionContainer.style("top", "50%");
+  instructionContainer.style("left", "50%");
+
+  //Centers the div relative to its parent
+  instructionContainer.style("transform", "translate(-50%, -50%)");
+
+  //Customizations
+  instructionContainer.style("background", "#ffaa00cd");
+  instructionContainer.style("border", "5px solid black");
+  instructionContainer.style("border-color", "#000000");
+  instructionContainer.style("padding", "20px");
+  instructionContainer.style("text-align", "center");
+  instructionContainer.style("font-family", "Courier New", "monospace");
+  instructionContainer.style("font-size", "50px");
+
+  //Hide until dev button pressed
+  instructionContainer.hide();
 }
 
 function stageManagerUI(){
