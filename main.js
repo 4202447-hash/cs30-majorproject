@@ -216,6 +216,18 @@ let hearts;
 //Breakable objects
 let crate;
 
+//sounds
+let footstepFx;
+let jumpFx;
+let landingFx;
+let punchImpactFx;
+let punchWhooshFx;
+let runningFx;
+let swordImpactFx;
+let swordWhooshFx;
+let parryFx;
+let teleportFx;
+let healFx;
 
 function preload() {
   //Player Animations
@@ -342,6 +354,19 @@ function preload() {
   for (let i = 1; i < 7; i++){
     caves[i] = loadImage(`caveBg/${i}.png`);
   }
+
+  //SFX
+  footstepFx = loadSound("sound/footsteps.mp3");
+  jumpFx = loadSound("sound/jump.mp3");
+  landingFx = loadSound("sound/landing.mp3");
+  punchImpactFx = loadSound("sound/punchImpact.mp3");
+  punchWhooshFx = loadSound("sound/punchWhoosh.mp3");
+  runningFx = loadSound("sound/running.mp3");
+  swordImpactFx = loadSound("sound/swordImpact.mp3");
+  swordWhooshFx = loadSound("sound/swordWhoosh.mp3");
+  parryFx = loadSound("sound/parry.mp3");
+  teleportFx = loadSound("sound/teleport.mp3");
+  healFx = loadSound("sound/heal.mp3");
 }
 
 //list of images
@@ -397,6 +422,7 @@ let canPlace = true;
 
 
 function setup() {
+  document.addEventListener("contextmenu", event => event.preventDefault());
   createCanvas(windowWidth, windowHeight);
   lightBuffer = createGraphics(windowWidth, windowHeight);
 
@@ -634,7 +660,7 @@ function keyPressed() {
     mapOpen = !mapOpen;
   }
 
-  if (key === " ") {
+  if (key === " " || keyCode === 38) {
     player.jump();
     player.inputBuffers.jump = millis();
     player.pressedS = 0;
@@ -681,12 +707,17 @@ function mousePressed() {
     return;
   }
 
-  
-  player.hit();
-  player.inputBuffers.punch = millis();
+  if (mouseButton === LEFT) {
+    player.hit();
+    player.inputBuffers.punch = millis();
+  }
+
+  if (mouseButton === RIGHT){
+    player.block();
+  }
 }
 
-function mouseReleased(){
+function mouseReleased(event){
   canPlace = true;
 }
 
@@ -775,7 +806,8 @@ class Humanoid {
     }
 
     let isCoyote = millis() - this.lastGround < this.coyoteJump && !this.grounded;
-
+    
+    jumpFx.play(0, 1, 0.6, 0, 0.5);
     if (this.grounded || isCoyote) {
       this.yVel = 0;
       this.yVel -= this.jumpStrength;
@@ -1195,8 +1227,11 @@ class Player extends Humanoid {
     }
 
     //This is for jumping
-    if (this.yVel < 0 && !keyIsDown(32) && this.didJump) {
+    if (this.yVel < 0 && !(keyIsDown(32) || keyIsDown(38)) && this.didJump) {
       this.yVel *= 0.6; 
+      if (this.yVel > 0){
+        jumpFx.stop();
+      }
     }
 
     this.y += this.yVel;
@@ -1230,7 +1265,7 @@ class Player extends Humanoid {
     }
     //All magic numbers got from live testing
 
-    let maxWidth = 800
+    let maxWidth = 800;
     let healthOffset = 5;
     let startingHeight = height * 0.9;
     let startingWidth = width/2 - maxWidth/2;
@@ -1259,7 +1294,7 @@ class Player extends Humanoid {
     stroke(0);
     fill(0);
     noFill();
-    strokeWeight(5)
+    strokeWeight(5);
 
     rect(startingWidth + barOffset, height - startingHeight, backgroundBarWidth, barHeight + 1);
 
@@ -1341,6 +1376,8 @@ class Player extends Humanoid {
     else if (this.grounded && this.xVel === 0 && this.yVel === 0) {
       this.lastActionState = this.actionState;
       this.actionState = "idle";
+      footstepFx.stop();
+      runningFx.stop();
     }
 
     //if grounded and moving and holding shift then sprinting
@@ -1348,12 +1385,20 @@ class Player extends Humanoid {
       if (keyIsDown(SHIFT) && this.actionState !== "rolling") {
         this.lastActionState = this.actionState;
         this.actionState = "sprinting";
+        footstepFx.stop();
+        if (!runningFx.isPlaying()){
+          runningFx.play(0, 1, 1, 1.5);
+        }
       }
 
       //If moving running
       else {
         this.lastActionState = this.actionState;
         this.actionState = "running";
+        runningFx.stop();
+        if (!footstepFx.isPlaying()){
+          footstepFx.play();
+        }
       }
     }
 
@@ -1375,10 +1420,10 @@ class Player extends Humanoid {
     }
     
     //Check for movement inputs
-    if (keyIsDown(65) && !keyIsDown(68)) {
+    if ((keyIsDown(65) || keyIsDown(37)) && !(keyIsDown(68) || keyIsDown(39))) {
       this.moveDir = -1;
     }
-    else if (keyIsDown(68) && !keyIsDown(65)) {
+    else if ((keyIsDown(68) || keyIsDown(39)) && !(keyIsDown(65) || keyIsDown(37))) {
       this.moveDir = 1;
     }
     else {
@@ -1454,6 +1499,14 @@ class Player extends Humanoid {
               continue;
             }
 
+            if (this.currentWeapon === "sword"){
+              swordImpactFx.stop();
+              swordImpactFx.play();
+            }
+            else{
+              punchImpactFx.stop();
+              punchImpactFx.play();
+            }
             this.alrHit.push(item);
             let damage = this.currentWeapon === "punch" ? 1 : 2;
             item.onHit(damage);
@@ -1658,6 +1711,14 @@ class Player extends Humanoid {
       this.currentHit += 1;
     }
 
+    if (this.currentWeapon === "sword"){
+      swordWhooshFx.stop();
+      swordWhooshFx.play(0, 1, 1, 0.2);
+    }else{
+      punchWhooshFx.stop();
+      punchWhooshFx.play(0, 1, 0.6, 0.15);
+    }
+
     //Reset things that are already hit
     this.alrHit = [];
   }
@@ -1815,6 +1876,7 @@ class Player extends Humanoid {
   //Have seperate functions for these sort of things incase I want to add additional things 
   didBlock(){
     this.goalYellowBar = Math.min(100, this.yellowBar + 51);
+    parryFx.play();
   }
 
   didDodge(){
@@ -1847,6 +1909,10 @@ class Player extends Humanoid {
   }
 
   heal(){
+    if (!healFx.isPlaying()){
+      healFx.play();
+    }
+
     if (this.goalRedBar === 100){
       if (!this.redHeartActive){
         this.redHeartActive = true;
@@ -2554,7 +2620,7 @@ class Platform {
 
     if (overlapX > 0 && overlapY > 0) {
       //This is code which makes the pebble enmy explode upon contact with a block once theyve attacked once
-      if (item instanceof Pebble && item.attacked && !((item instanceof GiantRock) && !(item instanceof FallingRock))){
+      if (item instanceof Pebble && item.attacked && !(item instanceof GiantRock && !(item instanceof FallingRock))){
         item.onHit(1);
       }
 
@@ -2600,6 +2666,12 @@ class Platform {
               item.actionState = "landing";
             }
             item.timeSinceLand = millis();
+          }
+
+          if (item.yVel > 4){
+            if (!landingFx.isPlaying()){
+              landingFx.play(0, 1, 1, 0, 0.5);
+            }
           }
 
           if (item.yVel >= 0 || !this.oneWay){
@@ -3072,6 +3144,9 @@ class Gate {
   isTouched() {
     if (this.touched()) {
       fade = "out";
+      if (!teleportFx.isPlaying()){
+        teleportFx.play();
+      }
       setTimeout(() => {
         let nextStage = this.to;
         loadUserStage(nextStage, "playing");
@@ -3229,7 +3304,7 @@ function updateAll() {
   //We still want to see the player and have them animated 
   if (entities.includes(player)){
     let lastHitCntr = millis() - player.lastHitTaken;
-    if (lastHitCntr < player.hitCD * 2 && lastHitCntr > player.flashLength && freezeFrames === 0){
+    if (lastHitCntr < player.hitCD * 2 && lastHitCntr > player.flashLength && freezeFrames <= 0){
       if (frameCount % 10 === 0){
         player.display();
       }
