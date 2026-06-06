@@ -27,7 +27,12 @@ class Bat extends Humanoid{
     this.windingUp = false;
     this.moveDir = 1;
     this.target = false;
+    this. init = millis();
     
+    //sounds
+    this.chirpSound = new p5.SoundFile(batChirpFx.url)
+    this.sounds = [this.chirpSound]
+
     //Animations
     this.idle = "batIdle";
     this.death = "batDeath";
@@ -265,11 +270,19 @@ class Bat extends Humanoid{
 
     if (this.actionState === "death" && this.currentFrame === 7 && this.grounded && this.yVel === 0){
       this.actionState = "deathFall";
+      landingFx.play(0, 1, 0.3);
     }
 
 
     if (abs(this.xVel) > 0.2 && this.active){
       this.actionState = "idle";
+      //The init check is to allow the chirp sound to load
+      if (millis() - this.init > 1000){
+        playMobSound(this.chirpSound, null, null, this, true)
+      }
+    }
+    else{
+      this.chirpSound.stop();
     }
   }
 
@@ -328,7 +341,7 @@ class Bat extends Humanoid{
 
     //Player hit on touch
     if (this.checkCollision(player)) {
-      if (millis() - player.lastHitTaken < 1000) {
+      if (millis() - player.lastHitTaken < player.hitCD) {
         return;
       }
 
@@ -418,6 +431,9 @@ class Bat extends Humanoid{
         {
           if (this.actionState === "hit" || !this.active || this.actionState === "death"){
             return;
+          }
+          if (!batAttackFx.isPlaying()){
+            batAttackFx.play(0, 1, 1, 0, 0.5);
           }
           this.actionState = "attack";
           this.lastAttack = millis();

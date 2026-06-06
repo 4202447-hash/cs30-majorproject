@@ -1,12 +1,6 @@
-// Rainbow Runner
+// Cave Trails
 // Ayman Faisal
-// 3/2/2026
-//
-// Extra for Experts:
-// - (Changed for grid assignment) For the grid assignment I included saving stages on the users local history
-  
-//Controls: WASD To move, Shift to roll, hold shift to sprint, M1 to punch, space to jump
-
+// 6/6/2026
 
 //Constants
 const GRAVITATIONALFORCE = 0.3;
@@ -228,6 +222,19 @@ let swordWhooshFx;
 let parryFx;
 let teleportFx;
 let healFx;
+let rollFx;
+let unsheathFx;
+let batAttackFx;
+let batChirpFx;
+let golemHoverFx;
+let pebbleSummonFx;
+let golemRushFx;
+let rockRollFx;
+let rockThudFx;
+let eruptionFx;
+let laserFx;
+let buttonHoverFx;
+let buttonClickFx;
 
 function preload() {
   //Player Animations
@@ -367,6 +374,19 @@ function preload() {
   parryFx = loadSound("sound/parry.mp3");
   teleportFx = loadSound("sound/teleport.mp3");
   healFx = loadSound("sound/heal.mp3");
+  unsheathFx = loadSound("sound/unsheath.mp3");
+  rollFx = loadSound("sound/roll.mp3");
+  batAttackFx = loadSound("sound/batAttack.mp3")
+  batChirpFx = loadSound("sound/batChirp.mp3");
+  golemHoverFx = loadSound("sound/golemIdle.mp3");
+  golemRushFx = loadSound("sound/golemRush.mp3");
+  pebbleSummonFx = loadSound("sound/pebbleSummon.mp3");
+  rockRollFx = loadSound("sound/rockRolling.mp3");
+  rockThudFx = loadSound("sound/rockThud.mp3");
+  eruptionFx = loadSound("sound/eruption.mp3")
+  laserFx = loadSound("sound/laser.mp3");
+  buttonClickFx = loadSound("sound/buttonClick.mp3");
+  buttonHoverFx = loadSound("sound/buttonHover.mp3")
 }
 
 //list of images
@@ -439,16 +459,7 @@ function setup() {
 
   initializeTables();
 
-  // //Load stages the player has made
-  // let savedData = localStorage.getItem("platformer_userStages");
-  // if (savedData) {
-  //   userStages = JSON.parse(savedData);
-  // }
-  // else {
-  //   userStages = {};
-  //   localStorage.setItem("platformer_userStages", "{}");
-  // }
-
+  //Get data from storage and load if not existing
   localforage.getItem("platformer_userStages").then((savedData) => {
     if (savedData){
       userStages = savedData;
@@ -517,6 +528,7 @@ function setup() {
 let animationCounter = 0;
 
 function draw() {
+  //Show map if open
   if (mapOpen){
     drawMiniMap();
     return;
@@ -528,6 +540,7 @@ function draw() {
 
   background(220);
 
+  //Run background game loop
   scale(mapScale);
   drawBackground();
   checkDevModePre();
@@ -548,6 +561,7 @@ function draw() {
     
     translate(cameraX + screenShakeX, cameraY + screenShakeY);
   
+    //Run main game loop
     updateAll();
     checkDevModePost();
 
@@ -559,6 +573,7 @@ function draw() {
 
     handleFade();
 
+    //Run freeze frames
     if (freezeFrames > 0){
       freezeFrames -= 1;
     }
@@ -567,11 +582,13 @@ function draw() {
       drawLighting();
     }
 
+    //Show guis
     player.showGUI();
     player.showHealthBar();
   }
 }
 
+//Function which allows you to draw texts into the in game world
 function drawTexts(){
   let worldX = mouseX/mapScale - cameraX;
   let worldY = mouseY/mapScale - cameraY;
@@ -717,6 +734,7 @@ function mousePressed() {
   }
 }
 
+//Allows you ti place blocks again
 function mouseReleased(event){
   canPlace = true;
 }
@@ -807,6 +825,7 @@ class Humanoid {
 
     let isCoyote = millis() - this.lastGround < this.coyoteJump && !this.grounded;
     
+    jumpFx.stop();
     jumpFx.play(0, 1, 0.6, 0, 0.5);
     if (this.grounded || isCoyote) {
       this.yVel = 0;
@@ -826,6 +845,8 @@ class Humanoid {
     ) {
       return;
     }
+
+    rollFx.play();
 
     this.lastActionState = this.actionState;
     this.actionState = "rolling";
@@ -876,7 +897,7 @@ class Player extends Humanoid {
 
     //Attacks and cooldowns
     this.currentHit = 1;
-    this.hitCD = 1000;
+    this.hitCD = 2000;
     this.blockCooldown = 1000;
     this.lastBlock = 0;
     this.lastPhase = 0;
@@ -1328,6 +1349,10 @@ class Player extends Humanoid {
       }
     }
 
+    //Play sound
+    punchImpactFx.stop()
+    punchImpactFx.play()
+
     //check if dead;
     this.dead();
   }
@@ -1716,7 +1741,7 @@ class Player extends Humanoid {
       swordWhooshFx.play(0, 1, 1, 0.2);
     }else{
       punchWhooshFx.stop();
-      punchWhooshFx.play(0, 1, 0.6, 0.15);
+      punchWhooshFx.play(0, 1, 0.6, 0.3, 0.2);
     }
 
     //Reset things that are already hit
@@ -1898,6 +1923,9 @@ class Player extends Humanoid {
     this.rangeX = 80;
     this.currentHit = 1;
     this.rangeY = 80;
+
+    unsheathFx.stop();
+    unsheathFx.play();
   }
 
   disableSword(){
@@ -1909,14 +1937,13 @@ class Player extends Humanoid {
   }
 
   heal(){
-    if (!healFx.isPlaying()){
-      healFx.play();
-    }
-
     if (this.goalRedBar === 100){
       if (!this.redHeartActive){
         this.redHeartActive = true;
         this.goalRedBar = 0;
+        if (!healFx.isPlaying()){
+          healFx.play();
+        }
       }
     }
 
@@ -1924,6 +1951,9 @@ class Player extends Humanoid {
       if (!this.blueHeartActive){
         this.blueHeartActive = true;
         this.goalBlueBar = 0;
+        if (!healFx.isPlaying()){
+          healFx.play();
+        }
       }
     }
 
@@ -1931,6 +1961,9 @@ class Player extends Humanoid {
       if (!this.greenHeartActive){
         this.greenHeartActive = true;
         this.goalGreenBar = 0;
+        if (!healFx.isPlaying()){
+          healFx.play();
+        }
       }
     }
 
@@ -1938,6 +1971,9 @@ class Player extends Humanoid {
       if (!this.yellowHeartActive){
         this.yellowHeartActive = true;
         this.goalYellowBar = 0;
+        if (!healFx.isPlaying()){
+          healFx.play();
+        }
       }
     }
   }
@@ -1951,7 +1987,6 @@ class Player extends Humanoid {
         fade = "out";
       }
 
-      this.hitCD = 0;
       this.rollCD = 0;
       this.lastPhaseCD = 0;
       this.blockCooldown = 0;
@@ -1965,6 +2000,9 @@ class Player extends Humanoid {
       this.disableSword();
       freezeFrames = 0;
 
+      footstepFx.stop();
+      runningFx.stop();
+
       setTimeout(() => {
         mapGrid = loadStage(currentStage);
       }, 500);
@@ -1972,6 +2010,7 @@ class Player extends Humanoid {
   }
 }
 
+//Mushroom class
 class Mushroom extends Humanoid {
   constructor(x, y, startPos, endPos, direction) {
     super(x, y);
@@ -1994,6 +2033,11 @@ class Mushroom extends Humanoid {
     this.startingX = this.x;
     this.lastSwitch = 0;
     this.switchTime = 500;
+    this.init;
+
+    //sounds (independant of global to allow stopping single sound at a time)
+    this.walkSound = new p5.SoundFile(footstepFx.url)
+    this.sounds = [this.walkSound]
 
     //Variables specific to entity for enemy AI
     this.startPos = startPos;
@@ -2320,7 +2364,6 @@ class Mushroom extends Humanoid {
     }
     if (abs(this.xVel) > 0.1) {
       this.actionState = "running" ;
-      
     }
     else if (this.actionState === "running") {
       this.actionState = "idle";
@@ -2339,6 +2382,14 @@ class Mushroom extends Humanoid {
     if (this.actionState !== this.lastActionState) {
       this.currentFrame = 0;
       this.lastActionState = this.actionState;
+    }
+
+    if (this.actionState === "running" && millis() - this.init > 1000){
+      playMobSound(this.walkSound, null, null, this, true);
+    }
+    
+    else{
+      this.walkSound.stop();
     }
   }
 
@@ -2380,7 +2431,7 @@ class Mushroom extends Humanoid {
 
     //Player hit on touch
     if (this.checkCollision(player)) {
-      if (millis() - player.lastHitTaken < this.hitCD) {
+      if (millis() - player.lastHitTaken < player.hitCD) {
         return;
       }
 
@@ -2463,6 +2514,7 @@ class Mushroom extends Humanoid {
 
       this.moveSpeed = 0;
       this.actionState = "attackWind";
+      punchWhooshFx.play(0, 1, 0.5);
 
       //If player is behind mushroom
       if (player.x > this.x) {
@@ -2664,14 +2716,11 @@ class Platform {
           if (item.yVel > 0.2 && item.actionState === "jumpFall") {
             if (item instanceof Player) {
               item.actionState = "landing";
+              if (!landingFx.isPlaying()){
+                landingFx.play(0, 1, 0.8, 0, 0.3);
+              }
             }
             item.timeSinceLand = millis();
-          }
-
-          if (item.yVel > 4){
-            if (!landingFx.isPlaying()){
-              landingFx.play(0, 1, 1, 0, 0.5);
-            }
           }
 
           if (item.yVel >= 0 || !this.oneWay){
@@ -2752,7 +2801,6 @@ class MovingPlatform extends Platform{
   }
 }
 
-
 //Platform like blocks which damage the player
 class HurtBlock extends Platform{
   constructor(xPos, yPos, sizeX, sizeY, oneWay, theColor, theImage, tileX, tileY, canClimb, bottomBlock, cantCollide, rotation) {
@@ -2779,7 +2827,6 @@ class HurtBlock extends Platform{
     }
   }
 }
-
 
 //Hurtblock like blocks which fall as the player nears
 class FallingSpike extends HurtBlock{
@@ -2823,6 +2870,7 @@ class FallingSpike extends HurtBlock{
   }
 }
 
+//Sword in rock class which allows player to obtain sword
 class SwordInRock{
   constructor(x, y){
     this.image = swordObtained ? "rock" : "swordInRock";
@@ -2859,6 +2907,7 @@ class SwordInRock{
     }, 500);
   }
 }
+
 //Takes small parts of a given image and shoots them outwards like debris
 class Debris{
   constructor(x, y, ogImg, width, height, broken) {
@@ -2929,6 +2978,7 @@ class Debris{
   }
 }
 
+//Platform class which are breakable
 class BreakableObject {
   constructor(x, y, sizeX, sizeY, mainImg, health) {
     this.x = x;
@@ -3034,6 +3084,9 @@ class BreakableObject {
           if (item.yVel > 0.2 && item.actionState === "jumpFall") {
             if (item instanceof Player) {
               item.actionState = "landing";
+              if (!landingFx.isPlaying()){
+                landingFx.play(0, 1, 0.8, 0, 0.3);
+              }
             }
             item.timeSinceLand = millis();
           }
@@ -3067,6 +3120,7 @@ class BreakableObject {
   }
 }
 
+//Class of gate which allows stage to stage transport
 class Gate {
   constructor(x, y, from, to, sizeX, sizeY, toX, toY) {
     this.x = x;
@@ -3092,7 +3146,6 @@ class Gate {
     let itemLeft = item.x - item.sizeX / 2;
     let itemRight = item.x + item.sizeX / 2;
     let itemTop = item.y - item.sizeY / 2;
-    console.log(this.to);
 
     if (
       itemRight > this.left  &&
@@ -3236,6 +3289,8 @@ function checkDevModePost() {
 }
 
 function checkDevModePre() {
+
+  //Allows player to look down
   let sHoldTime;
   if (player){
     sHoldTime = player.pressedS > 0 ? millis() - player.pressedS : 0;
@@ -3303,16 +3358,12 @@ function updateAll() {
 
   //We still want to see the player and have them animated 
   if (entities.includes(player)){
-    let lastHitCntr = millis() - player.lastHitTaken;
-    if (lastHitCntr < player.hitCD * 2 && lastHitCntr > player.flashLength && freezeFrames <= 0){
-      if (frameCount % 10 === 0){
-        player.display();
-      }
+    if (millis() - player.lastHitTaken > 150 && millis() - player.lastHitTaken < player.hitCD){
+      tint(100, 100, 100, 150)
     }
-    else{
-      player.display();
-    }
-    
+
+    player.display();
+    noTint();
 
     if (freezeFrames <= 0){ 
       //Run player calls outside loop as the game will stop rendering player if it exits its initial spot inside the loop(since the players position in the grid never changes)
@@ -3325,6 +3376,7 @@ function updateAll() {
     let gridX = Math.floor(player.x / cellSize);
     let gridY = Math.floor(player.y / cellSize);
 
+    //Check collision for the two blocks around the given entity/player
     let radius = 2;
 
     for (let x = gridX - radius; x <= gridX + radius; x++){
@@ -3392,6 +3444,7 @@ function updateAll() {
         }
       }
 
+      //Check bigger radius for armored golem as it is bigger
       else if (entity instanceof ArmoredGolem){
         entity.display();
         if (gameMode === "playing" && freezeFrames === 0){
@@ -3431,6 +3484,7 @@ function updateAll() {
     }
   }
 
+  //Check collisions for debris chunks
   for (let object of brObjects) {
     for (let chunk of object.chunks) {
       if (debrisCount > maxDebris){
@@ -3461,7 +3515,7 @@ function updateAll() {
     }
   }
 
-
+  //Miscelaneous display and collision checks which dont fit into earlier loops
   for (let x = startX; x < endX; x++) {
     for (let y = startY; y < endY; y++) {
       //Safety check
@@ -3517,46 +3571,6 @@ function windowResized() {
 
 //function to draw a parallex background 
 function drawBackground() {
-  // if (gameMode === "menu"){
-  //   image(backgroundLayer1, width/2, height/2, width, height); 
-  //   image(backgroundLayerLight, width/2, height/2, width/2, height); 
-  // }
-  // else {
-  //   //adjust respective layers speed to change speed at which image moves
-  //   let bgX = cameraX * LAYER1SPEED % width;
-
-  //   image(backgroundLayer1, bgX, BACKGROUNDY, width/2, height);
-  //   image(backgroundLayer1, bgX + width/2, BACKGROUNDY , width/2, height);
-  //   image(backgroundLayer1, bgX + width, BACKGROUNDY , width/2, height);
-  //   image(backgroundLayer1, bgX - width/2, BACKGROUNDY , width/2, height);
-  //   image(backgroundLayer1, bgX - width, BACKGROUNDY , width/2, height);
-
-  //   //The aditional offset is because the light is slightly off where I want it
-  //   let offset = height * 0.04;
-
-  //   image(backgroundLayerLight, bgX, BACKGROUNDY + offset, width/2, height);
-  //   image(backgroundLayerLight, bgX + width/2, BACKGROUNDY + offset , width/2, height);
-  //   image(backgroundLayerLight, bgX + width, BACKGROUNDY + offset , width/2, height);
-  //   image(backgroundLayerLight, bgX - width/2, BACKGROUNDY + offset , width/2, height);
-  //   image(backgroundLayerLight, bgX - width, BACKGROUNDY + offset , width/2, height);
-
-  //   bgX = cameraX * LAYER2SPEED % width;
-  //   image(backgroundLayer2, bgX, BACKGROUNDY, width/2, height);
-  //   image(backgroundLayer2, bgX + width/2, BACKGROUNDY , width/2, height);
-  //   image(backgroundLayer2, bgX + width, BACKGROUNDY , width/2, height);
-  //   image(backgroundLayer2, bgX - width/2, BACKGROUNDY , width/2, height);
-  //   image(backgroundLayer2, bgX - width, BACKGROUNDY , width/2, height);
-
-  //   bgX = cameraX * LAYER3SPEED % width;
-  //   image(backgroundLayer3, bgX, BACKGROUNDY, width/2, height);
-  //   image(backgroundLayer3, bgX + width/2, BACKGROUNDY , width/2, height);
-  //   image(backgroundLayer3, bgX + width, BACKGROUNDY , width/2, height);
-  //   image(backgroundLayer3, bgX - width/2, BACKGROUNDY , width/2, height);
-  //   image(backgroundLayer3, bgX - width, BACKGROUNDY , width/2, height);
-
-
-  // }
-  
   for (let i = 6; i > 0; i--){
     let w = width/2;
     let bgX = cameraX * caveSpeeds[i] % w;
@@ -3581,6 +3595,7 @@ function getItemsInArea(x, y, sizeX, sizeY, self) {
   let startY = Math.max(0, Math.floor(squareTop / cellSize));
   let endY = Math.min(mapGrid[0].length - 1, Math.ceil(squareBottom / cellSize));
 
+  //Loop through breakable objects and players for things which can be hit
   for (let i = startX; i <= endX; i++){
     for (let j = startY; j < endY; j++){
       let object = mapGrid[i][j];
@@ -3659,7 +3674,7 @@ function handleFade() {
     }
   }
 
-  //if we are fading in, return to none once done
+  //if we are fading in, return to none once done after a short
   else if (fade === "in") {
     setTimeout(() => {
       fadeAmount -= fadeRate;
@@ -3678,8 +3693,6 @@ function handleFade() {
     pop();
   }
 }
-
-//Grid based game portion of assignment
 
 //Creates our grid
 function createGrid(cols, rows) {
@@ -3955,7 +3968,6 @@ function handleDeletes(gridX, gridY){
   }
 
   else if (mapGrid[gridX][gridY] instanceof Golem){
-    console.log("Wasnt");
     deleteArea(gridX, gridY, 1, 2);
   }
 
@@ -4023,6 +4035,7 @@ function placeBlock (givenX, givenY, givenSelected, givenRotation) {
   }
 }
 
+//Places the sword in rock item
 function placeSword(givenX, givenY){
   let worldX = mouseX/mapScale - cameraX;
   let worldY = mouseY/mapScale - cameraY;
@@ -4311,6 +4324,7 @@ function placeMushroom(givenX, givenY){
   entities.push(mushroom);
 }
 
+//Function to place golem
 function placeGolem(givenX, givenY){
   let worldX = mouseX/mapScale - cameraX;
   let worldY = mouseY/mapScale - cameraY;
@@ -4343,6 +4357,7 @@ function placeGolem(givenX, givenY){
   entities.push(golem);
 }
 
+//Function to place armoured golem boss
 function placeArmGolem(givenX, givenY){
   let worldX = mouseX/mapScale - cameraX;
   let worldY = mouseY/mapScale - cameraY;
@@ -4669,6 +4684,7 @@ function deleteArea(xStart, yStart, rows, cols) {
   }
 }
 
+//Initialize all tables
 function initializeTables() {
   //Initialize decal tables for platforms
   deadGrassPlatform = [deadGrassPlatformL, deadGrassPlatformM, deadGrassPlatformR];
@@ -4785,6 +4801,7 @@ function initializeTables() {
   createdStages = {stage1, stage2, stage3, stage4, stage5, stage6, stage7, bossarena};
 }
 
+//Setup menu GUI
 function setUpGUI() {
   //Setting up our sidebar for the devmode
   sideBar = createDiv("");
@@ -4895,6 +4912,15 @@ function loadStage(stage){
   currentStage = stage;
   let newMap = createGrid(totalRows, totalCols);
   //Clear old stuff
+  for (let entity of entities){
+    if (entity.sounds && entity.sounds.isArray){
+      for (let sound of entity.sounds){
+        sound.stop();
+        sound.dispose();
+      }
+    }
+  }
+
   entities = [];
   brObjects = [];
   movingPlatforms = [];
@@ -5056,6 +5082,7 @@ function loadStage(stage){
   return newMap;
 }
 
+//Creates the menu UI
 function createMenuUI(){
   //Create main menu container
   mainMenuContainer = createDiv("").id("menu");
@@ -5106,6 +5133,7 @@ function createMenuUI(){
   });
 }
 
+//Opens instruction menu
 function openInstructions(parent){
   parent.html(''); //Crucial to clear old list
 
@@ -5184,6 +5212,7 @@ function styleMenuButton(btn) {
   });
 }
 
+//Function to make the buttons in the stages section
 function stageSideButtons(btn){
   btn.style("transition", "transform 0.2s ease-out, color 0.2s");
 
@@ -5199,6 +5228,7 @@ function stageSideButtons(btn){
   });
 }
 
+//Function to make instructions UI
 function instructionUI(){
   instructionContainer = createDiv("").id("instructionContainer");
   instructionContainer.style("position", "absolute");
@@ -5221,6 +5251,7 @@ function instructionUI(){
   instructionContainer.hide();
 }
 
+//Function to make stage manager
 function stageManagerUI(){
   stageManager = createDiv("").id("stageManager");
   stageManager.style("position", "absolute");
@@ -5427,6 +5458,7 @@ function loadUserStage(stageName, mode){
   }
 }
 
+//Function which loads player into the campaign
 function loadCampaign(){
   //Here is where I would get the last saved stage but for now just stage1
   let stageName = continuedStage;
@@ -5446,6 +5478,7 @@ function loadCampaign(){
   gameMode = "playing";
 }
 
+//Function which moves all blocks down one block (needed a few times to adjust stages)
 function moveDown(amount){
   let newGrid = createGrid(totalRows, totalCols);
   for (let x = 0; x < mapGrid.length; x++){
@@ -5468,4 +5501,39 @@ function changeMP(){
   pMoveDir = Number(prompt("direction of platform (should be a 1 or -1)"));
   pmaxX = Number(prompt("max # of blocks it can travel horizontally(should be a #"));
   pmaxY = Number(prompt("max # of blocks it can travel vertically (should be a #"));
+}
+
+//Function which plays mob sounds at volume relative to distance
+function playMobSound(sound, start, time, entity, shouldLoop, multi){
+  let upperLimit = (width * 0.5) * (width * 0.5)
+  let dx = entity.x - player.x;
+  let dy = entity.y - player.y;
+  let distSquared = dx * dx + dy * dy;
+
+  if (time === null){
+    time = sound.length
+  }
+
+  if (distSquared > upperLimit){
+    return;
+  }
+
+  let volume = map(distSquared, 1, upperLimit, 1, 0);
+
+  if (shouldLoop){
+    if (sound.isPlaying()){
+      sound.setVolume(volume)
+    }
+    else{
+      sound.loop(0, 1, volume)
+    }
+  }
+  else{
+    if (sound.isPlaying() && !multi){
+      sound.setVolume(volume)
+    }
+    else{
+      sound.play(0, 1, volume, start, time);
+    }
+  }
 }

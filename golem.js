@@ -1,3 +1,5 @@
+//This is the code regarding all golem, armoured golem, and rock related mobs
+
 class Golem extends Humanoid{
   constructor(x, y){
     super(x, y);
@@ -26,6 +28,10 @@ class Golem extends Humanoid{
     this.timeSinceIdle = 0;
     this.heightDiff = 64;
     this.lastModeSwitch = 0;
+
+    //Sounds
+    this.hoverFx = new p5.SoundFile(golemHoverFx.url);
+    this.sounds = [this.hoverFx]
 
     //Set to negative 5000 to match the atkACD meaning he can attack as soon as he spawns
     this.lastAttackA = -5000;
@@ -401,6 +407,10 @@ class Golem extends Humanoid{
     else if (this.actionState === "running") {
       this.actionState = "idle" + this.mode;
     }
+
+    if (this.actionState.startsWith("idle")){
+        playMobSound(this.hoverFx, null, null, this, true);
+    }
   }
 
   update() {
@@ -471,7 +481,7 @@ class Golem extends Humanoid{
 
     //Player hit on touch
     if (this.checkCollision(player)) {
-      if (millis() - player.lastHitTaken < this.hitCD) {
+      if (millis() - player.lastHitTaken < player.hitCD) {
         return;
       }
 
@@ -627,6 +637,8 @@ class Golem extends Humanoid{
             let pebble7 = new Pebble(this.x - 8, this.top, -1, "right", 0, -25);
             let pebble8 = new Pebble(this.x - 8, this.top, -1, "left", 0, -25);
             entities.push(pebble1, pebble2, pebble3, pebble4, pebble5, pebble6, pebble7, pebble8);
+
+            pebbleSummonFx.play(0, 1, 0.1, 0.4);
           }
         }  
       }, 400);
@@ -649,6 +661,7 @@ class Golem extends Humanoid{
             let Otherpebble = new Pebble(this.x + 8, this.bottom, 1, "left", 6, 0);
 
             entities.push(pebble, Otherpebble);
+            pebbleSummonFx.play(0, 1, 0.1, 0.4);
           }
         }  
       }, 400);
@@ -676,6 +689,7 @@ class Golem extends Humanoid{
 
         let dir = this.directionFacing === "left" ? -1 : 1;
         this.xVel = 5 * this.attackCCnt * dir * 2;
+        golemRushFx.play();
       }  
     }, 250);
   }
@@ -708,6 +722,11 @@ class Pebble extends Humanoid{
     this.creationTime = millis();
     this.xVel = xVel * this.moveDir;
     this.yVel = yVel;
+    this.init = millis();
+    
+    //sounds
+    this.rollFx = new p5.SoundFile(rockRollFx.url)
+    this.sounds = [this.rollFx]; 
 
     //Animations
     this.frameWidth = 0;
@@ -881,11 +900,18 @@ class Pebble extends Humanoid{
 
   handleState() {
     if (this.actionState === "death"){
+      this.rollFx.stop();
+      this.rollFx.dispose();
       return;
     }
-    //Skip if currently in an action state
-    if (abs(this.xVel) > 0.1) {
-      this.actionState = "running" ;
+
+    if (abs(this.xVel) > 0.1 ) {
+      this.actionState = "running";
+
+      //Init buffer to allow sound to load
+      if(millis() - this.init > 1000){
+        playMobSound(this.rollFx, null, null, this,  true);
+      }
     }
     else if (this.actionState === "running") {
       this.actionState = "idle";
@@ -904,16 +930,21 @@ class Pebble extends Humanoid{
       this.currentFrame = 0;
       this.lastActionState = this.actionState;
       if (this.actionState === "idle"){
-        this.timeSinceIdle = mills();
+        this.timeSinceIdle = milils();
       }
     }
   }
 
   //What to do when hit
   onHit() {
+    if (this.actionState === "death" || this.health === 0){
+      return
+    }
+
     this.moveSpeed = 0;
     this.health = 0;
     this.actionState = "death";
+    rockThudFx.play(0, 1, 1, 0.2);
   }
 
   checkCollision(item) {
@@ -939,7 +970,7 @@ class Pebble extends Humanoid{
 
     //Player hit on touch
     if (this.checkCollision(player)) {
-      if (millis() - player.lastHitTaken < this.hitCD) {
+      if (millis() - player.lastHitTaken < player.hitCD) {
         return;
       }
 
@@ -949,7 +980,6 @@ class Pebble extends Humanoid{
         screenShake = 4;
         this.moveSpeed = 0;
         this.xVel = player.x < this.x ? this.xVel + 12 : this.xVel - 12;
-        this.sizeX = this.normalSize;
         player.didBlock();
         this.onHit();
         return;
@@ -1281,7 +1311,6 @@ class ArmoredGolem extends Humanoid{
     //Apply gravity
     if (!this.grounded && !this.raisingPillars && !this.rockSliding) {
       this.yVel += GRAVITATIONALFORCE / 2;
-      console.log("ran");
     }
 
     this.y += this.yVel;
@@ -1424,6 +1453,10 @@ class ArmoredGolem extends Humanoid{
   }
 
   applyHit() {
+    if (millis() - player.lastHitTaken < player.hitCD){
+      return
+    }
+
     //Player hit on touch (if not dodging)
     if (this.checkCollision(player)) {
       //Dont damage when dodging
@@ -1541,6 +1574,7 @@ class ArmoredGolem extends Humanoid{
           let pillar = new Pillars(pillarPos[x], this.pillarY);
           entities.push(pillar);
           screenShake = 4 + 0.5 * x;
+          playMobSound(eruptionFx, 0.5, null, this, false, true)
         }, 200 * x);
 
         setTimeout(() => {
@@ -1567,7 +1601,11 @@ class ArmoredGolem extends Humanoid{
     let x = 108;
     let y = 636;
     let rock = new GiantRock(x, y, 1, "right", 6, 0);
+    this.screenShake += 2;
+    
     entities.push(rock);
+    
+    pebbleSummonFx.play(0, 1, 0.1, 0.1)
   }
 
   createShockwave(){
@@ -1581,6 +1619,7 @@ class ArmoredGolem extends Humanoid{
     let direction = player.x > this.x ? 1 : -1;
     let projectile = new Projectile(this.x, this.y + 25, direction, this);
     entities.push(projectile);
+    laserFx.play();
   }
 
   runAI(){
@@ -1791,7 +1830,7 @@ class Pillars{
   }
 
   applyHit() {
-    if (!this.active) {
+    if (!this.active || millis() - player.lastHitTaken < player.hitCD) {
       return;
     }
 
@@ -1899,7 +1938,7 @@ class GiantRock extends Pebble{
 
     //Player hit on touch
     if (this.checkCollision(player)) {
-      if (millis() - player.lastHitTaken < this.hitCD) {
+      if (millis() - player.lastHitTaken < player.hitCD) {
         return;
       }
 
@@ -2078,7 +2117,7 @@ class ShockWave{
   }
 
   applyHit() {
-    if (!this.active) {
+    if (!this.active || millis() - player.lastHitTaken < player.hitCD) {
       return;
     }
 
@@ -2249,7 +2288,7 @@ class Projectile{
   }
 
   applyHit() {
-    if (!this.active) {
+    if (!this.active || millis() - player.lastHitTaken < player.hitCD) {
       return;
     }
 

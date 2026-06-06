@@ -5,4 +5,6 @@
 - Add arrow key movement
 
 ## Doesn't know CS
-- 
+- give better invincibility frames after hit so you dont get spam hit
+- get rid of spikes in tunnels 
+- make sound volumes more even
