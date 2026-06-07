@@ -43,6 +43,15 @@ let pmaxY = 5;
 let pMoveDir = 1;
 let swordObtained = false;
 let currentBoss;
+let currentImage;
+let hasPlayedBefore
+let imageLength = 6000
+let currentMusic;
+let lastMusic;
+let musicVolume = 0.6;
+let maxMusicVolume = 0.6
+let musicFadeRate = 0.01;
+let musicFade = "none";
 
 //For stages and stage creator
 let internalStages = {};
@@ -235,6 +244,22 @@ let eruptionFx;
 let laserFx;
 let buttonHoverFx;
 let buttonClickFx;
+let laserImpactFx;
+
+//Music
+let mmMusic;
+let bossMusic;
+let casualMusic;
+let cutsceneMusic;
+
+//Cutscene images
+let cs1;
+let cs2;
+let cs3;
+let cs4;
+let cs5;
+
+let cutscenes = [cs1, cs2, cs3, cs4, cs5];
 
 function preload() {
   //Player Animations
@@ -385,8 +410,19 @@ function preload() {
   rockThudFx = loadSound("sound/rockThud.mp3");
   eruptionFx = loadSound("sound/eruption.mp3")
   laserFx = loadSound("sound/laser.mp3");
+  laserImpactFx = loadSound("sound/laserImpact.mp3");
   buttonClickFx = loadSound("sound/buttonClick.mp3");
   buttonHoverFx = loadSound("sound/buttonHover.mp3")
+
+  //cutscene images
+  for (let i = 1; i < 6; i++){
+    cutscenes[i - 1] = loadImage(`cutscene/${i}.png`);
+  }
+
+  mmMusic = loadSound("music/mmMusic.mp3")
+  bossMusic = loadSound("music/bossMusic.mp3");
+  casualMusic = loadSound("music/stageMusic.mp3");
+  cutsceneMusic = loadSound("music/cutsceneMusic.mp3");
 }
 
 //list of images
@@ -528,7 +564,18 @@ function setup() {
 let animationCounter = 0;
 
 function draw() {
+  handleMusic();
+  handleMFade();
+
   //Show map if open
+  if (gameMode === "cutscene"){
+    setTimeout(() => {
+      image(currentImage, width/2, height/2, width, height)
+    }, 500);
+    handleFade();
+    return
+  }
+
   if (mapOpen){
     drawMiniMap();
     return;
@@ -720,7 +767,7 @@ function keyReleased() {
 
 //When mouse is pressed attack
 function mousePressed() {
-  if (gameMode === "editor" || freezeFrames > 0 || gameMode === "menu") {
+  if (gameMode === "editor" || freezeFrames > 0 || gameMode === "menu" || gameMode === "cutscene") {
     return;
   }
 
@@ -2033,7 +2080,6 @@ class Mushroom extends Humanoid {
     this.startingX = this.x;
     this.lastSwitch = 0;
     this.switchTime = 500;
-    this.init;
 
     //sounds (independant of global to allow stopping single sound at a time)
     this.walkSound = new p5.SoundFile(footstepFx.url)
@@ -2384,7 +2430,7 @@ class Mushroom extends Humanoid {
       this.lastActionState = this.actionState;
     }
 
-    if (this.actionState === "running" && millis() - this.init > 1000){
+    if (this.actionState === "running" && this.walkSound.isLoaded()){
       playMobSound(this.walkSound, null, null, this, true);
     }
     
@@ -2778,7 +2824,11 @@ class MovingPlatform extends Platform{
     this.x += this.xVel * this.moveDir;
     this.y += this.yVel * this.moveDir * -1;
 
-    if(abs(this.startX - this.x) >= this.maxX || abs(this.startY - this.y) >= this.maxY){
+    let xBounced = this.xVel !== 0 && abs(this.startX - this.x) >= this.maxX
+    let yBounced = this.yVel !== 0 && abs(this.startY - this.y) >= this.maxY
+
+
+    if(xBounced || yBounced){
       this.moveDir *= -1;
     }
   }
@@ -3502,7 +3552,7 @@ function updateAll() {
           let safetyCheck = mapGrid[gridX];
 
           if (!safetyCheck){
-            return;
+            continue;
           }
 
           let item = mapGrid[x][y];
@@ -4848,6 +4898,7 @@ function setUpGUI() {
       localforage.setItem("platformer_userStages", userStages).then(() =>{
       });
     }
+    buttonClickFx.play();
   });
 
   //Exit button to leave development mode
@@ -4881,8 +4932,8 @@ function setUpGUI() {
     mainMenuContainer.style("display", "flex");
     sideBar.hide();
     saveButton.hide();
-    //exitButton.hide();
     selected = "none";
+    buttonClickFx.play();
   });
 
   //Loop through object presets and create button for each one
@@ -4903,6 +4954,7 @@ function setUpGUI() {
 
     button.mousePressed(function () {
       selected = object;
+      buttonClickFx.play();
     });
   }
 }
@@ -4912,13 +4964,13 @@ function loadStage(stage){
   currentStage = stage;
   let newMap = createGrid(totalRows, totalCols);
   //Clear old stuff
-  for (let entity of entities){
-    if (entity.sounds && entity.sounds.isArray){
-      for (let sound of entity.sounds){
-        sound.stop();
-        sound.dispose();
-      }
-    }
+  
+  //Clear the sound directly from p5 sound out
+  let soundArray = p5.soundOut.soundArray;
+  for (let i = soundArray.length - 1; i > 29; i--){
+    soundArray[i].stop();
+    soundArray[i].disconnect();
+    soundArray.splice(i, 1);
   }
 
   entities = [];
@@ -5096,12 +5148,27 @@ function createMenuUI(){
   mainMenuContainer.style("gap", "50px");
 
   //Button to continue from wherever player last left off in campaign/main game
-  let hasPlayedBefore = localforage.getItem("platformer_hasPlayed");
-  let text = "CONTINUE";
+  let text = "START";
+  localforage.getItem("platformer_hasPlayed").then((data) =>{
 
-  if (!hasPlayedBefore){
-    text = "START";
-  }
+    if (data){
+      text = "CONTINUE";
+    }
+
+    hasPlayedBefore = data;
+
+    localforage.setItem("platformer_hasPlayed", true)
+
+    let continueBtn = createButton(text);
+    continueBtn.parent(mainMenuContainer);
+    styleMenuButton(continueBtn);
+  
+    //Continue player from wherever their last stage was when pressed (or from save point in the future)
+    continueBtn.mousePressed(() => {
+    loadCampaign();
+    buttonClickFx.play();
+  });
+  });
 
   let instructions = createButton("INSTRUCTIONS");
   instructions.parent(mainMenuContainer);
@@ -5111,15 +5178,7 @@ function createMenuUI(){
 
   instructions.mousePressed(() => {
     openInstructions(instructionContainer);
-  });
-
-  let continueBtn = createButton(text);
-  continueBtn.parent(mainMenuContainer);
-  styleMenuButton(continueBtn);
-  
-  //Continue player from wherever their last stage was when pressed (or from save point in the future)
-  continueBtn.mousePressed(() => {
-    loadCampaign();
+    buttonClickFx.play();
   });
 
   //Dev button or to make a stage
@@ -5130,6 +5189,7 @@ function createMenuUI(){
   //Open stage manager when pressed
   devButton.mousePressed(() => {
     stageManager.show();
+    buttonClickFx.play();
   });
 }
 
@@ -5150,6 +5210,7 @@ function openInstructions(parent){
 
   exitButton.mousePressed(() => {
     instructionContainer.hide();
+    buttonClickFx.play();
   });
 
   exitButton.mouseOver(() => {
@@ -5203,6 +5264,7 @@ function styleMenuButton(btn) {
   btn.mouseOver(() => {
     btn.style("color", "#273C75");
     btn.style("transform", "scale(1.2)");
+    buttonHoverFx.play();
   });
 
   //Reset 
@@ -5292,6 +5354,7 @@ function buildStageItem(parent){
 
   exitButton.mousePressed(() => {
     stageManager.hide();
+    buttonClickFx.play();
   });
 
   exitButton.mouseOver(() => {
@@ -5347,6 +5410,7 @@ function buildStageItem(parent){
       exitButton.show();
       exitButton.style("display", "flex");
       loadUserStage(stage, "playing");
+      buttonClickFx.play();
     });
 
     stageSideButtons(playButton);
@@ -5356,6 +5420,7 @@ function buildStageItem(parent){
     deleteButton.style("color", "white");
     deleteButton.style("background", "#c20707");
     deleteButton.mousePressed(() => {
+      buttonClickFx.play();
       if (confirm(`Delete stage "${stage}"?`)){
         delete userStages[stage];
         localforage.setItem("platformer_userStages", userStages).then(() =>{
@@ -5372,6 +5437,7 @@ function buildStageItem(parent){
     develop.style("background", "#250c68");
     develop.mousePressed(() => {
       loadUserStage(stage, "editor");
+      buttonClickFx.play();
     });
 
     stageSideButtons(develop);
@@ -5394,6 +5460,7 @@ function buildStageItem(parent){
   createBtn.style("background","none");
   createBtn.style("border","none");
   createBtn.mousePressed(() => {
+    buttonClickFx.play();
     let name = prompt("Enter stage name");
     if (name && !userStages[name]) {
       let emptyGrid = createGrid(totalRows, totalCols);
@@ -5461,7 +5528,40 @@ function loadUserStage(stageName, mode){
 //Function which loads player into the campaign
 function loadCampaign(){
   //Here is where I would get the last saved stage but for now just stage1
-  let stageName = continuedStage;
+  if (!hasPlayedBefore){
+    console.log(hasPlayedBefore)
+    mainMenuContainer.hide();
+    stageManager.hide();
+
+    //Run cutscene mid fade
+    setTimeout(() => {
+      runCutscene()
+    }, 500);
+    
+    //Load stage post cutscene
+    setTimeout(() => {
+      let stageName = continuedStage;
+      if (!createdStages[stageName]){
+        return;
+      };
+
+      localforage.setItem("platformer_lastStage", stageName);
+
+      let deadStage = structuredClone(createdStages[stageName]);
+
+      //Load stage in between fade
+      fade = "out"
+      setTimeout(() => {
+        gameMode = "playing";
+        mapGrid = loadStage(deadStage);
+      }, 1000);
+      
+    }, cutscenes.length * imageLength);
+  }
+
+  //If has played before then dont run cutscene
+  else{
+    let stageName = continuedStage;
   if (!createdStages[stageName]){
     return;
   };
@@ -5476,6 +5576,7 @@ function loadCampaign(){
 
   mapGrid = loadStage(deadStage);
   gameMode = "playing";
+  }
 }
 
 //Function which moves all blocks down one block (needed a few times to adjust stages)
@@ -5535,5 +5636,79 @@ function playMobSound(sound, start, time, entity, shouldLoop, multi){
     else{
       sound.play(0, 1, volume, start, time);
     }
+  }
+}
+
+function runCutscene(){
+  fade = "out"
+  gameMode = "cutscene"
+  currentImage = cutscenes[0]
+
+  for (let i = 0; i < cutscenes.length; i++){
+    //Change images
+    setTimeout(() => {
+      currentImage = cutscenes[i]
+    }, i * imageLength);
+
+    //Run fade
+    if (i !== 0){
+      setTimeout(() => {
+      fade = "out"
+    }, i * imageLength - 1000);
+    }
+  }
+}
+
+//Handles what music should be playing right now based off what player is doing
+function handleMusic(){
+  if (currentMusic !== lastMusic){
+    musicFade = "out"
+  }
+
+  if (gameMode === "menu"){
+    lastMusic = currentMusic;
+    currentMusic = mmMusic
+  }
+
+  else if (gameMode === "cutscene"){
+    lastMusic = currentMusic;
+    currentMusic = cutsceneMusic;
+  }
+
+  if (gameMode === "playing" && !currentBoss){
+    lastMusic = currentMusic;
+    currentMusic = casualMusic;
+  }
+
+  else if (gameMode === "playing" && currentBoss){
+    lastMusic = currentMusic;
+    currentMusic = bossMusic;
+  }
+}
+
+//Handles the fading of music volume
+function handleMFade() {
+  if (musicFade === "out") {
+    musicVolume -= musicFadeRate;
+    currentMusic.setVolume(musicVolume);
+    if (musicVolume <= 0) {
+      musicFade = "in";
+      cutsceneMusic.stop();
+      mmMusic.stop();
+      casualMusic.stop();
+      bossMusic.stop();
+    }
+  }
+
+  else if (musicFade === "in") {
+    currentMusic.setVolume(musicVolume);
+      musicVolume += musicFadeRate;
+      if (!currentMusic.isPlaying()){
+          currentMusic.loop();
+      }
+
+      if (musicVolume >= maxMusicVolume) {
+        musicFade = "none";
+      }
   }
 }

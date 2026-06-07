@@ -722,7 +722,6 @@ class Pebble extends Humanoid{
     this.creationTime = millis();
     this.xVel = xVel * this.moveDir;
     this.yVel = yVel;
-    this.init = millis();
     
     //sounds
     this.rollFx = new p5.SoundFile(rockRollFx.url)
@@ -868,6 +867,10 @@ class Pebble extends Humanoid{
         if (this.actionState === "death") {
           this.actionState = "death";
           this.active = false;
+
+          this.rollFx.stop();
+          this.rollFx.disconnect();
+          this.rollFx = null;
           entities = entities.filter(item => item !== this);
         }
       }
@@ -909,7 +912,7 @@ class Pebble extends Humanoid{
       this.actionState = "running";
 
       //Init buffer to allow sound to load
-      if(millis() - this.init > 1000){
+      if(this.rollFx.isLoaded()){
         playMobSound(this.rollFx, null, null, this,  true);
       }
     }
@@ -1071,7 +1074,7 @@ class ArmoredGolem extends Humanoid{
     this.sizeX = 20 * this.imageScale;
     this.pillarY = this.bottom = this.y + this.sizeY / 2; //Just set this so we know where to sprout pillars from
     this.moveSpeed = 0;
-    this.health = 100;
+    this.health = 1;
     this.moveDir = 0;
     this.actionState = "idle";
     this.timeSinceIdle = 0;
@@ -1401,6 +1404,9 @@ class ArmoredGolem extends Humanoid{
         else if (this.actionState === "reset"){
           this.lastActionState = this.actionState;
           this.actionState = "deathB";
+          
+          //Reuse sfx for golem death
+          pebbleSummonFx.play();
         }
       
         else {
@@ -1516,16 +1522,19 @@ class ArmoredGolem extends Humanoid{
       let posX = rockPos[number];
       let posY = 60; //from testing
       let lookDir = random(-1, 1);
+      let facing;
 
       if (lookDir >= 0){
         lookDir = 1;
+        facing = "right"  
       }
       else{
         lookDir = -1;
+        facing = "left"
       }
 
       setTimeout(() => {
-        let rock = new FallingRock(posX, posY, lookDir, "right", 0, 0);
+        let rock = new FallingRock(posX, posY, lookDir, facing, 0, 0);
         entities.push(rock);
       }, x * 100);
 
@@ -1988,8 +1997,8 @@ class GiantRock extends Pebble{
 
 class FallingRock extends GiantRock{
   //Literally just a giant rock but with no AI
-  constructor(x, y){
-    super(x, y, 0, 0, 0, 0);
+  constructor(x, y, lookDir, facing){
+    super(x, y, 0, facing, 0, 0);
     this.attacked = true;
   }
   runAI(){
@@ -2193,6 +2202,7 @@ class Projectile{
     this.duration = 2000;
     this.reflected = false;
     this.parent = parent;
+    this.hit = false;
 
     this.sprites = {
       ability: {
@@ -2288,7 +2298,7 @@ class Projectile{
   }
 
   applyHit() {
-    if (!this.active || millis() - player.lastHitTaken < player.hitCD) {
+    if (!this.active || millis() - player.lastHitTaken < player.hitCD || this.hit) {
       return;
     }
 
@@ -2312,13 +2322,16 @@ class Projectile{
           }
         }
 
+        this.hit = true;
         player.gotHit();
         screenShake = 4;
       }
     }
     else{
       if (this.checkCollision(this.parent)){
-        this.parent.onHit();
+        this.parent.onHit(15);
+        laserImpactFx.play();
+        this.hit = true;
       }
     }
     

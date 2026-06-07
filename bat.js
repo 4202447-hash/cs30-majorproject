@@ -27,7 +27,6 @@ class Bat extends Humanoid{
     this.windingUp = false;
     this.moveDir = 1;
     this.target = false;
-    this. init = millis();
     
     //sounds
     this.chirpSound = new p5.SoundFile(batChirpFx.url)
@@ -277,7 +276,7 @@ class Bat extends Humanoid{
     if (abs(this.xVel) > 0.2 && this.active){
       this.actionState = "idle";
       //The init check is to allow the chirp sound to load
-      if (millis() - this.init > 1000){
+      if (this.chirpSound.isLoaded()){
         playMobSound(this.chirpSound, null, null, this, true)
       }
     }
