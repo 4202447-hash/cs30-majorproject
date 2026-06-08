@@ -44,12 +44,12 @@ let pMoveDir = 1;
 let swordObtained = false;
 let currentBoss;
 let currentImage;
-let hasPlayedBefore
-let imageLength = 6000
+let hasPlayedBefore;
+let imageLength = 6000;
 let currentMusic;
 let lastMusic;
 let musicVolume = 0.6;
-let maxMusicVolume = 0.6
+let maxMusicVolume = 0.6;
 let musicFadeRate = 0.01;
 let musicFade = "none";
 
@@ -401,25 +401,25 @@ function preload() {
   healFx = loadSound("sound/heal.mp3");
   unsheathFx = loadSound("sound/unsheath.mp3");
   rollFx = loadSound("sound/roll.mp3");
-  batAttackFx = loadSound("sound/batAttack.mp3")
+  batAttackFx = loadSound("sound/batAttack.mp3");
   batChirpFx = loadSound("sound/batChirp.mp3");
   golemHoverFx = loadSound("sound/golemIdle.mp3");
   golemRushFx = loadSound("sound/golemRush.mp3");
   pebbleSummonFx = loadSound("sound/pebbleSummon.mp3");
   rockRollFx = loadSound("sound/rockRolling.mp3");
   rockThudFx = loadSound("sound/rockThud.mp3");
-  eruptionFx = loadSound("sound/eruption.mp3")
+  eruptionFx = loadSound("sound/eruption.mp3");
   laserFx = loadSound("sound/laser.mp3");
   laserImpactFx = loadSound("sound/laserImpact.mp3");
   buttonClickFx = loadSound("sound/buttonClick.mp3");
-  buttonHoverFx = loadSound("sound/buttonHover.mp3")
+  buttonHoverFx = loadSound("sound/buttonHover.mp3");
 
   //cutscene images
   for (let i = 1; i < 6; i++){
     cutscenes[i - 1] = loadImage(`cutscene/${i}.png`);
   }
 
-  mmMusic = loadSound("music/mmMusic.mp3")
+  mmMusic = loadSound("music/mmMusic.mp3");
   bossMusic = loadSound("music/bossMusic.mp3");
   casualMusic = loadSound("music/stageMusic.mp3");
   cutsceneMusic = loadSound("music/cutsceneMusic.mp3");
@@ -570,10 +570,10 @@ function draw() {
   //Show map if open
   if (gameMode === "cutscene"){
     setTimeout(() => {
-      image(currentImage, width/2, height/2, width, height)
+      image(currentImage, width/2, height/2, width, height);
     }, 500);
     handleFade();
-    return
+    return;
   }
 
   if (mapOpen){
@@ -1397,8 +1397,8 @@ class Player extends Humanoid {
     }
 
     //Play sound
-    punchImpactFx.stop()
-    punchImpactFx.play()
+    punchImpactFx.stop();
+    punchImpactFx.play();
 
     //check if dead;
     this.dead();
@@ -1786,7 +1786,8 @@ class Player extends Humanoid {
     if (this.currentWeapon === "sword"){
       swordWhooshFx.stop();
       swordWhooshFx.play(0, 1, 1, 0.2);
-    }else{
+    }
+    else{
       punchWhooshFx.stop();
       punchWhooshFx.play(0, 1, 0.6, 0.3, 0.2);
     }
@@ -2082,8 +2083,8 @@ class Mushroom extends Humanoid {
     this.switchTime = 500;
 
     //sounds (independant of global to allow stopping single sound at a time)
-    this.walkSound = new p5.SoundFile(footstepFx.url)
-    this.sounds = [this.walkSound]
+    this.walkSound = new p5.SoundFile(footstepFx.url);
+    this.sounds = [this.walkSound];
 
     //Variables specific to entity for enemy AI
     this.startPos = startPos;
@@ -2435,7 +2436,9 @@ class Mushroom extends Humanoid {
     }
     
     else{
-      this.walkSound.stop();
+      if (this.walkSound.isLoaded){
+        this.walkSound.stop();
+      }
     }
   }
 
@@ -2824,8 +2827,8 @@ class MovingPlatform extends Platform{
     this.x += this.xVel * this.moveDir;
     this.y += this.yVel * this.moveDir * -1;
 
-    let xBounced = this.xVel !== 0 && abs(this.startX - this.x) >= this.maxX
-    let yBounced = this.yVel !== 0 && abs(this.startY - this.y) >= this.maxY
+    let xBounced = this.xVel !== 0 && abs(this.startX - this.x) >= this.maxX;
+    let yBounced = this.yVel !== 0 && abs(this.startY - this.y) >= this.maxY;
 
 
     if(xBounced || yBounced){
@@ -3409,7 +3412,7 @@ function updateAll() {
   //We still want to see the player and have them animated 
   if (entities.includes(player)){
     if (millis() - player.lastHitTaken > 150 && millis() - player.lastHitTaken < player.hitCD){
-      tint(100, 100, 100, 150)
+      tint(100, 100, 100, 150);
     }
 
     player.display();
@@ -5157,7 +5160,7 @@ function createMenuUI(){
 
     hasPlayedBefore = data;
 
-    localforage.setItem("platformer_hasPlayed", true)
+    localforage.setItem("platformer_hasPlayed", true);
 
     let continueBtn = createButton(text);
     continueBtn.parent(mainMenuContainer);
@@ -5165,9 +5168,9 @@ function createMenuUI(){
   
     //Continue player from wherever their last stage was when pressed (or from save point in the future)
     continueBtn.mousePressed(() => {
-    loadCampaign();
-    buttonClickFx.play();
-  });
+      loadCampaign();
+      buttonClickFx.play();
+    });
   });
 
   let instructions = createButton("INSTRUCTIONS");
@@ -5529,13 +5532,13 @@ function loadUserStage(stageName, mode){
 function loadCampaign(){
   //Here is where I would get the last saved stage but for now just stage1
   if (!hasPlayedBefore){
-    console.log(hasPlayedBefore)
+    console.log(hasPlayedBefore);
     mainMenuContainer.hide();
     stageManager.hide();
 
     //Run cutscene mid fade
     setTimeout(() => {
-      runCutscene()
+      runCutscene();
     }, 500);
     
     //Load stage post cutscene
@@ -5550,7 +5553,7 @@ function loadCampaign(){
       let deadStage = structuredClone(createdStages[stageName]);
 
       //Load stage in between fade
-      fade = "out"
+      fade = "out";
       setTimeout(() => {
         gameMode = "playing";
         mapGrid = loadStage(deadStage);
@@ -5562,20 +5565,20 @@ function loadCampaign(){
   //If has played before then dont run cutscene
   else{
     let stageName = continuedStage;
-  if (!createdStages[stageName]){
-    return;
-  };
+    if (!createdStages[stageName]){
+      return;
+    };
 
-  localforage.setItem("platformer_lastStage", stageName);
+    localforage.setItem("platformer_lastStage", stageName);
 
-  mainMenuContainer.hide();
-  stageManager.hide();
+    mainMenuContainer.hide();
+    stageManager.hide();
 
-  gameMode = "playing";
-  let deadStage = structuredClone(createdStages[stageName]);
+    gameMode = "playing";
+    let deadStage = structuredClone(createdStages[stageName]);
 
-  mapGrid = loadStage(deadStage);
-  gameMode = "playing";
+    mapGrid = loadStage(deadStage);
+    gameMode = "playing";
   }
 }
 
@@ -5606,13 +5609,13 @@ function changeMP(){
 
 //Function which plays mob sounds at volume relative to distance
 function playMobSound(sound, start, time, entity, shouldLoop, multi){
-  let upperLimit = (width * 0.5) * (width * 0.5)
+  let upperLimit = width * 0.5 * (width * 0.5);
   let dx = entity.x - player.x;
   let dy = entity.y - player.y;
   let distSquared = dx * dx + dy * dy;
 
   if (time === null){
-    time = sound.length
+    time = sound.length;
   }
 
   if (distSquared > upperLimit){
@@ -5623,15 +5626,15 @@ function playMobSound(sound, start, time, entity, shouldLoop, multi){
 
   if (shouldLoop){
     if (sound.isPlaying()){
-      sound.setVolume(volume)
+      sound.setVolume(volume);
     }
     else{
-      sound.loop(0, 1, volume)
+      sound.loop(0, 1, volume);
     }
   }
   else{
     if (sound.isPlaying() && !multi){
-      sound.setVolume(volume)
+      sound.setVolume(volume);
     }
     else{
       sound.play(0, 1, volume, start, time);
@@ -5640,21 +5643,21 @@ function playMobSound(sound, start, time, entity, shouldLoop, multi){
 }
 
 function runCutscene(){
-  fade = "out"
-  gameMode = "cutscene"
-  currentImage = cutscenes[0]
+  fade = "out";
+  gameMode = "cutscene";
+  currentImage = cutscenes[0];
 
   for (let i = 0; i < cutscenes.length; i++){
     //Change images
     setTimeout(() => {
-      currentImage = cutscenes[i]
+      currentImage = cutscenes[i];
     }, i * imageLength);
 
     //Run fade
     if (i !== 0){
       setTimeout(() => {
-      fade = "out"
-    }, i * imageLength - 1000);
+        fade = "out";
+      }, i * imageLength - 1000);
     }
   }
 }
@@ -5662,12 +5665,12 @@ function runCutscene(){
 //Handles what music should be playing right now based off what player is doing
 function handleMusic(){
   if (currentMusic !== lastMusic){
-    musicFade = "out"
+    musicFade = "out";
   }
 
   if (gameMode === "menu"){
     lastMusic = currentMusic;
-    currentMusic = mmMusic
+    currentMusic = mmMusic;
   }
 
   else if (gameMode === "cutscene"){
@@ -5702,13 +5705,13 @@ function handleMFade() {
 
   else if (musicFade === "in") {
     currentMusic.setVolume(musicVolume);
-      musicVolume += musicFadeRate;
-      if (!currentMusic.isPlaying()){
-          currentMusic.loop();
-      }
+    musicVolume += musicFadeRate;
+    if (!currentMusic.isPlaying()){
+      currentMusic.loop();
+    }
 
-      if (musicVolume >= maxMusicVolume) {
-        musicFade = "none";
-      }
+    if (musicVolume >= maxMusicVolume) {
+      musicFade = "none";
+    }
   }
 }

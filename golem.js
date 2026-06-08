@@ -31,7 +31,7 @@ class Golem extends Humanoid{
 
     //Sounds
     this.hoverFx = new p5.SoundFile(golemHoverFx.url);
-    this.sounds = [this.hoverFx]
+    this.sounds = [this.hoverFx];
 
     //Set to negative 5000 to match the atkACD meaning he can attack as soon as he spawns
     this.lastAttackA = -5000;
@@ -408,8 +408,8 @@ class Golem extends Humanoid{
       this.actionState = "idle" + this.mode;
     }
 
-    if (this.actionState.startsWith("idle")){
-        playMobSound(this.hoverFx, null, null, this, true);
+    if (this.actionState.startsWith("idle") && this.hoverFx.isLoaded()){
+      playMobSound(this.hoverFx, null, null, this, true);
     }
   }
 
@@ -724,7 +724,7 @@ class Pebble extends Humanoid{
     this.yVel = yVel;
     
     //sounds
-    this.rollFx = new p5.SoundFile(rockRollFx.url)
+    this.rollFx = new p5.SoundFile(rockRollFx.url);
     this.sounds = [this.rollFx]; 
 
     //Animations
@@ -903,8 +903,10 @@ class Pebble extends Humanoid{
 
   handleState() {
     if (this.actionState === "death"){
-      this.rollFx.stop();
-      this.rollFx.dispose();
+      if (this && this.rollFx){
+        this.rollFx.stop();
+        this.rollFx.dispose();
+      }
       return;
     }
 
@@ -941,7 +943,7 @@ class Pebble extends Humanoid{
   //What to do when hit
   onHit() {
     if (this.actionState === "death" || this.health === 0){
-      return
+      return;
     }
 
     this.moveSpeed = 0;
@@ -1460,7 +1462,7 @@ class ArmoredGolem extends Humanoid{
 
   applyHit() {
     if (millis() - player.lastHitTaken < player.hitCD){
-      return
+      return;
     }
 
     //Player hit on touch (if not dodging)
@@ -1526,11 +1528,11 @@ class ArmoredGolem extends Humanoid{
 
       if (lookDir >= 0){
         lookDir = 1;
-        facing = "right"  
+        facing = "right";  
       }
       else{
         lookDir = -1;
-        facing = "left"
+        facing = "left";
       }
 
       setTimeout(() => {
@@ -1583,7 +1585,7 @@ class ArmoredGolem extends Humanoid{
           let pillar = new Pillars(pillarPos[x], this.pillarY);
           entities.push(pillar);
           screenShake = 4 + 0.5 * x;
-          playMobSound(eruptionFx, 0.5, null, this, false, true)
+          playMobSound(eruptionFx, 0.5, null, this, false, true);
         }, 200 * x);
 
         setTimeout(() => {
@@ -1614,7 +1616,7 @@ class ArmoredGolem extends Humanoid{
     
     entities.push(rock);
     
-    pebbleSummonFx.play(0, 1, 0.1, 0.1)
+    pebbleSummonFx.play(0, 1, 0.1, 0.1);
   }
 
   createShockwave(){
@@ -1681,7 +1683,7 @@ class ArmoredGolem extends Humanoid{
       this.timeNearPlayer = 0;
     }
 
-    if (this.pillarsActive || this.actionState === "sweep" || this.actionState == "shoot"){
+    if (this.pillarsActive || this.actionState === "sweep" || this.actionState === "shoot"){
       return;
     }
 

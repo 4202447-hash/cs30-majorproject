@@ -29,8 +29,8 @@ class Bat extends Humanoid{
     this.target = false;
     
     //sounds
-    this.chirpSound = new p5.SoundFile(batChirpFx.url)
-    this.sounds = [this.chirpSound]
+    this.chirpSound = new p5.SoundFile(batChirpFx.url);
+    this.sounds = [this.chirpSound];
 
     //Animations
     this.idle = "batIdle";
@@ -108,7 +108,7 @@ class Bat extends Humanoid{
     let lookAhead = this.directionFacing === "right" ? 25 : -25;
     let floorCheckX = this.x + lookAhead;
    
-    if (checkIfPath(floorCheckX, this.y) || (abs(this.x - this.startingX) > this.maxRange && !this.target)) {
+    if (checkIfPath(floorCheckX, this.y) || abs(this.x - this.startingX) > this.maxRange && !this.target) {
       this.directionFacing = this.directionFacing === "right" ? "left" : "right";
       this.moveDir *= -1;
     }
@@ -277,11 +277,13 @@ class Bat extends Humanoid{
       this.actionState = "idle";
       //The init check is to allow the chirp sound to load
       if (this.chirpSound.isLoaded()){
-        playMobSound(this.chirpSound, null, null, this, true)
+        playMobSound(this.chirpSound, null, null, this, true);
       }
     }
     else{
-      this.chirpSound.stop();
+      if (this.chirpSound.isLoaded()){
+        this.chirpSound.stop();
+      }
     }
   }
 
