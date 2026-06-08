@@ -4976,6 +4976,7 @@ function loadStage(stage){
     soundArray.splice(i, 1);
   }
 
+  currentBoss = null;
   entities = [];
   brObjects = [];
   movingPlatforms = [];

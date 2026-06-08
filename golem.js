@@ -1076,7 +1076,7 @@ class ArmoredGolem extends Humanoid{
     this.sizeX = 20 * this.imageScale;
     this.pillarY = this.bottom = this.y + this.sizeY / 2; //Just set this so we know where to sprout pillars from
     this.moveSpeed = 0;
-    this.health = 1;
+    this.health = 100;
     this.moveDir = 0;
     this.actionState = "idle";
     this.timeSinceIdle = 0;
@@ -1406,6 +1406,7 @@ class ArmoredGolem extends Humanoid{
         else if (this.actionState === "reset"){
           this.lastActionState = this.actionState;
           this.actionState = "deathB";
+          currentBoss = null
           
           //Reuse sfx for golem death
           pebbleSummonFx.play();
