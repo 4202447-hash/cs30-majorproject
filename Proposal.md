@@ -7,13 +7,13 @@ I am going to attempt to make a 2d platformer game with combat elements, attempt
 - **Atleast 3** unique enemies, one of which should be flying, and another which should release projectiles. //Done 
 - **A consistent art scheme** //Yeah theres a theme there
 - **Atleast one boss fight**
-- **Non-linear map building** allowing the player to go in multiple directions //WIP
+- **Non-linear map building** allowing the player to go in multiple directions //done
 - **An ingame map** //done
 - **Checkpoint & Saving system** //Done current stage saves
 - **Fast paced movement** //Done with sprinting and rolling and everything
-- **8 - 12 Unique stages / levels** //5 done
+- **8 - 12 Unique stages / levels** //8 done
 - **Atleast one weapon** //done
-- **Sound** //havent started
+- **Sound** //done
 
 ##Nice to have
 - Special abilities/attacks
